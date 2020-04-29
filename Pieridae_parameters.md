@@ -1,7 +1,7 @@
-Pieridae host repertoire
+Pieridae host repertoire - parameters
 ================
 Mariana Braga
-4/22/2020
+29 April, 2020
 
 -----
 
@@ -9,39 +9,12 @@ Script 1 for empirical study performed in Braga et al. 2020 *Evolution
 of butterfly-plant networks revealed by Bayesian inference of host
 repertoire*.
 
-### Data
+### Parameter Estimates
 
-First we read in the phylogenetic trees for butterflies and plants.
-Then, we read in the interaction matrix and remove plants (rows) that
-are not hosts to any butterfly.
-
-**Trees**
-
-``` r
-tree <- read.tree("./data/bphy_pie_ladder.phy")
-host_tree <- read.tree("./data/angio_pie_50tips_ladder.phy")
-```
-
-**Extant network**
-
-``` r
-ext_net_50h <- as.matrix(read.csv("./data/incidence_pieridae.csv", header = T, row.names = 1))
-identical(colnames(ext_net_50h), tree$tip.label)
-identical(rownames(ext_net_50h), host_tree$tip.label)
-
-ext_net <- ext_net_50h[which(rowSums(ext_net_50h) != 0),]
-```
-
-### Outputs from RevBayes
-
-**Parameter estimates**
-
-Now we’ll read in the `log files` from the analyses in RevBayes. They
+First we’ll read in the `log files` from the analyses in RevBayes. They
 contain all the sampled parameter values during MCMC.
 
 ``` r
-##### PARAMETER ESTIMATES #####
-
 chain1 <- read.table("./inference/out.2.real.pieridae.2s.log", header = TRUE)[,c(1,5,7:9)]
 chain2 <- read.table("./inference/out.3.real.pieridae.2s.log", header = TRUE)[,c(1,5,7:9)]
 chain3 <- read.table("./inference/out.3.bl1.pieridae.2s.log", header = TRUE)[,c(1,5,7:9)]
@@ -165,17 +138,12 @@ gg20 <- ggplot(all_post, aes(`lambda[20]`)) +
 ggclock + ggbeta + gg02 + gg20 + plot_layout(ncol = 4, guides = 'collect')
 ```
 
-    ## Warning: Removed 4500 row(s) containing missing values (geom_path).
-
-    ## Warning: Removed 1500 row(s) containing missing values (geom_path).
-
-    ## Warning: Removed 4500 row(s) containing missing values (geom_path).
-    
-    ## Warning: Removed 4500 row(s) containing missing values (geom_path).
-
 ![](Pieridae_parameters_files/figure-gfm/densities-1.png)<!-- -->
 
 **Bayes factor**
+
+With Bayes factors we check which model has more support, the full model
+(with beta) or the simplified model where beta = 0.
 
 ``` r
 d_prior <- dexp(x=0, rate=1)
@@ -184,12 +152,6 @@ kd_beta_time <- kdensity(x = filter(posterior, tree == "time") %>% pull(beta),
                          kernel='gamma', 
                          support=c(0,Inf), 
                          bw = 0.02)
-```
-
-    ## Warning: namespace 'extraDistr' is not available and has been replaced
-    ## by .GlobalEnv when processing object ''
-
-``` r
 kd_beta_bl1 <- kdensity(x = filter(posterior, tree == "bl1") %>% pull(beta), 
                          kernel='gamma', 
                          support=c(0,Inf), 
@@ -207,3 +169,5 @@ max_bl1 = kd_beta_bl1(0)
 ```
 
     ## [1] 65545525
+
+Now we are ready to move on to Character history inference

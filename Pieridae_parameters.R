@@ -1,7 +1,7 @@
 #'---
-#'title: "Pieridae host repertoire"
+#'title: "Pieridae host repertoire - parameters"
 #'author: "Mariana Braga"
-#'date: "4/22/2020"
+#'date: "`r format(Sys.time(), '%d %B, %Y')`"
 #'output: github_document
 #'---
 
@@ -36,53 +36,15 @@ library(igraph)
 #library(ndtv)        # needed?
 #library(intergraph)  # needed?
 
-#' ### Data
-#' First we read in the phylogenetic trees for butterflies and plants.
-#' Then, we read in the interaction matrix and remove plants (rows)
-#' that are not hosts to any butterfly.
-#'
-/*#### INPUT DATA ####
-
-# _Read trees ----
-*/
-#' **Trees**
-#' 
-tree <- read.tree("./data/bphy_pie_ladder.phy")
-host_tree <- read.tree("./data/angio_pie_50tips_ladder.phy")
-
-#+ include = FALSE
-## for figure 2
-# host_tree_bl1 <- read.tree("./data/angio_pie_50tips_bl1.phy")
-# 
-# ggtree(host_tree_bl1) + 
-#   theme_tree2() + 
-#   geom_tiplab(align=TRUE, linesize=.5) + 
-#   xlim(0, 25)
-
-
-#' **Extant network**
-/*# _Extant network ----
-*/
-#+ results='hide'
-ext_net_50h <- as.matrix(read.csv("./data/incidence_pieridae.csv", header = T, row.names = 1))
-identical(colnames(ext_net_50h), tree$tip.label)
-identical(rownames(ext_net_50h), host_tree$tip.label)
-
-/*#+ */ 
-ext_net <- ext_net_50h[which(rowSums(ext_net_50h) != 0),]
-/*#visweb(ext_net, prednames = F, preynames = F)*/
-
   
-#' ### Outputs from RevBayes
+#' ### Parameter Estimates
 #' 
-#' **Parameter estimates**
-#' 
-#' Now we'll read in the `log files` from the analyses in RevBayes. 
+#' First we'll read in the `log files` from the analyses in RevBayes. 
 #' They contain all the sampled parameter values during MCMC.
 
-##### PARAMETER ESTIMATES #####
+/*##### PARAMETER ESTIMATES #####
 
-/*# _Read log files - output from MCMC ----
+# _Read log files - output from MCMC ----
 */
 chain1 <- read.table("./inference/out.2.real.pieridae.2s.log", header = TRUE)[,c(1,5,7:9)]
 chain2 <- read.table("./inference/out.3.real.pieridae.2s.log", header = TRUE)[,c(1,5,7:9)]
@@ -197,7 +159,7 @@ gg20 <- ggplot(all_post, aes(`lambda[20]`)) +
   xlim(c(0.9,1)) +
   theme_bw()
 
-#+ densities, fig.width=18, fig.height=4
+#+ densities, fig.width=18, fig.height=4, warning = FALSE
 ggclock + ggbeta + gg02 + gg20 + plot_layout(ncol = 4, guides = 'collect')
 
 
@@ -208,7 +170,8 @@ ggclock + ggbeta + gg02 + gg20 + plot_layout(ncol = 4, guides = 'collect')
 #' 
 /*# _Bayes factor ----
 */
-  
+
+#+ warning = FALSE
 d_prior <- dexp(x=0, rate=1)
 
 kd_beta_time <- kdensity(x = filter(posterior, tree == "time") %>% pull(beta), 
