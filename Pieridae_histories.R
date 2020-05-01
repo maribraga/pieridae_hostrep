@@ -82,34 +82,39 @@ dim(ext_net)
 #' **Read in .history.txt files**
 #'
 #' These files can get quite big, so I can't upload them in Github.
-#' Also, you might want to thin out these files to speed up their parsing.
-#' 
+#' Also, you might want to thin out these files to speed up their parsing. 
 #' This is how you can do it.
+#' 
+#' (Note that in the analyses in the paper we did not thin the histories, 
+#' so we'll show results with all sampled histories).
 
 colclasses <- c(rep("numeric",7),"character","character","numeric","character",rep("numeric",3))
-# history_dat_time = read.table("./inference/out.2.real.pieridae.2s.history.txt", sep="\t", header=T, colClasses = colclasses)
-# 
-## define burnin and sampling interval  
-#it_seq <- seq(20000,200000, 100)  
-#
-## Time-calibrated tree
-#history_dat_time <- filter(history_dat_time, iteration %in% it_seq) %>% 
-#  mutate(node_index = node_index + 1)
-#
-#write.table(history_dat_time,"./inference/history.time.txt", sep="\t", quote = F, row.names = F)
-#
-## Tree with branch lengths = 1
-#history_dat_bl1 = read.table("./inference/out.3.bl1.pieridae.2s.history.txt", sep="\t", header=T, colClasses = colclasses)
-#
-#history_dat_bl1 <- filter(history_dat_bl1, iteration %in% it_seq) %>% 
-#  mutate(node_index = node_index + 1)
-#
-#write.table(history_dat_bl1,"./inference/history.bl1.txt", sep="\t", quote = F, row.names = F)
+#+ eval = FALSE
+history_dat_time = read.table("./inference/out.2.real.pieridae.2s.history.txt", sep="\t", header=T, colClasses = colclasses)
+ 
+# define burnin and sampling interval  
+it_seq <- seq(20000,200000, 100)  
+
+# Time-calibrated tree
+history_dat_time <- filter(history_dat_time, iteration %in% it_seq) %>% 
+  mutate(node_index = node_index + 1)
+
+write.table(history_dat_time,"./inference/history.time.txt", sep="\t", quote = F, row.names = F)
+
+# Tree with branch lengths = 1
+history_dat_bl1 = read.table("./inference/out.3.bl1.pieridae.2s.history.txt", sep="\t", header=T, colClasses = colclasses)
+
+history_dat_bl1 <- filter(history_dat_bl1, iteration %in% it_seq) %>% 
+  mutate(node_index = node_index + 1)
+
+write.table(history_dat_bl1,"./inference/history.bl1.txt", sep="\t", quote = F, row.names = F)
 
 #' The next time you run this script you just need to read in the thinned histories.
 #' One file with sampled histories when using the time-cklibrated host tree,
 #' and one using the transformed host tree (all branch lengths = 1).
 #' 
+
+#+
 history_dat_time = read.table("./inference/history.time.txt", sep="\t", header=T, colClasses = colclasses)
 history_dat_bl1 = read.table("./inference/history.bl1.txt", sep="\t", header=T, colClasses = colclasses)
 
@@ -135,18 +140,15 @@ n_events_bl1 <- group_by(history_dat_bl1,iteration) %>%
 #' In both analyses, the rate of host repertoire evolution was near 1 event every 10 Myr (along each branch).
 #'
 
-/* # skip it for now
+/*
 ## (States at nodes) ----
 
-#+ include = FALSE
+#+ eval = FALSE
 source("functions_ancestral_states.R")
 
-#+
 hosts <- host_tree$tip.label
+nodes <- 67:131
 
-nodes <- c(84,128,129,130,131) #67:131
-
-# 2 state model
 pp <- make_matrix_nodes(history_dat, nodes, c(2))
 row.names(pp) <- paste0("Index_",nodes)
 colnames(pp) <- host_tree$tip.label
@@ -159,19 +161,27 @@ el <- get.data.frame(graph, what = "edges") %>%
          from = factor(from, levels = paste0("Index_",nodes))) %>% 
   rename(p = weight)
 
-ppbl1 <- ggplot(el, aes(x = to, y = from)) +
-          geom_tile(aes(fill = p)) +
-          scale_x_discrete(drop = FALSE) +
-          scale_y_discrete(drop = FALSE) +
-          scale_fill_gradient(low = "white", high = "black") +
-          labs(fill = "Posterior\nprobability") +
-          theme_bw() +
-          theme(
-            axis.text.x = element_text(angle = 270, hjust = 0, size = 7),
-            axis.text.y = element_text(size = 7),
-            axis.title.x = element_blank(),
-            axis.title.y = element_blank())
+#' Read probability matrix
+#' 
 
+#el <- readRDS("./inference/states_at_nodes_bl1.rds")
+el <- readRDS("./inference/states_at_nodes_time.rds")
+
+# all interactions
+ggplot(el, aes(x = to, y = from)) +
+  geom_tile(aes(fill = p)) +
+  scale_x_discrete(drop = FALSE) +
+  scale_y_discrete(drop = FALSE) +
+  scale_fill_gradient(low = "white", high = "black") +
+  labs(fill = "Posterior\nprobability") +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 270, hjust = 0, size = 7),
+    axis.text.y = element_text(size = 7),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank())
+
+# only high probability
 filter(el, p > 0.9) %>% 
   ggplot(aes(x = to, y = from)) + 
   geom_tile(aes(fill = p)) +
@@ -187,42 +197,45 @@ filter(el, p > 0.9) %>%
     axis.title.y = element_blank())
 
 */
-
-
-#' **Ancestral networks**
-#' 
+ 
 
 /*## States at ages ----
 
 # _Get posteriors at ages ----
 */
 
+#' **Ancestral networks**
+#'
 #' First load the script `functions_ancestral_states.R` which contains the functions 
 #' to calculate the posterior probabilities for each plant-butterfly 
 #' interaction at given times in the past.
 #' 
-#+ include = FALSE
+#+ eval = FALSE
 source("functions_ancestral_states.R")
 
 #' Then choose the times in the past at which you want to reconstruct the network.
 #' 
-#+
-#ages = c(80,70,60,50,40,30,20,10,0)
-ages = c(80,70,0)
+ages = c(80,70,60,50,40,30,20,10,0)
 
+#' This part is slow, so I won't run it here.
+#' 
+#+ eval = FALSE
 list_m_at_ages = list()
 for (i in 1:(length(ages)-1)) {
   age = ages[i]
   list_m_at_ages[[i]] = t(make_matrix_at_age( history_dat_time, age, s_hit=c(2) ))
-  #assign(paste0("m_",age), list_m_at_ages[[i]])
 }
 
+#' I have done this before and saved the list as a .rds file.
+#' 
+list_m_at_ages <- readRDS("./inference/list_m_at_ages_time.rds")
+  
 length(list_m_at_ages)
 head(list_m_at_ages[[1]])
 
 #' Then we add the extant network in the list with all ancestral networks.
 #'
-#list_m_at_ages[[9]] <- ext_net
+list_m_at_ages[[9]] <- ext_net
 
 #' We can build two kinds of ancestral networks, binary and quantitative.
 #' For binary networks, we need to choose a probability threshold above which 
@@ -238,7 +251,7 @@ head(list_m_at_ages[[1]])
 #' After defining the probability threshold, we transform the probabilities into 1s and 0s.
 #'    
 # probability threshold
-pt <- 80 
+pt <- 90 
 # gather networks in a list
 net_list <- list()
 for(m in 1:length(list_m_at_ages)){
@@ -252,38 +265,55 @@ for(m in 1:length(list_m_at_ages)){
       }
     }
   }
-  matrix = matrix[ rowSums(matrix)!=0, ]
-  matrix = matrix[ ,colSums(matrix)!=0 ]
-  net_list[[m]] <- matrix
-  #assign(paste0("net_",pt,"p_",ages[m]), matrix)
+  df <- as.data.frame(matrix) # so that it doesn't become a vector
+  df = df[ rowSums(df)!=0, ]  # if only one row/column is left
+  df = df[ ,colSums(df)!=0 ]
+  net_list[[m]] <- df
 }
 
-head(net_list[[1]])
+net_list[[1]]
 
-/* # update to use bipartite instead?
 
-## __(Output matrices for MODULAR) ----
-#
-## folder that will be read by MODULAR - change when repeating with different host tree
-#path_net <- "/Users/mari/Google\ Drive/P4\ -\ networks/host_tree_bl1/modular/"    
-##path_net <- "/Users/mari/Google\ Drive/P4\ -\ networks/host_tree_time/modular/"    
-#
-## export networks as .txt files without row and column names
-#for(n in 1:length(net_list)){
-#  net <- net_list[[n]]
-#  name <- paste0(path_net,"net_",pt,"p_",ages[n],"Ma.txt")
-#  write.table(net, name, row.names = FALSE, col.names = FALSE)
-#}
-
+/*# __Calculate modularity with bipartite (STOCHASTIC STEP!)----
 */
+#' *Calculate modularity (stochastic step!)*
+#' 
 
-/*
-# __(Make tidygraphs with MODULAR modules) ----
+#' This doesn't work for the network at 80Ma because it only has one host, 
+#' so we add it manually before calculatig for the other networks.
+#' 
 
-# called in the beginning as well
-#path_mod <- paste0("./net_structure/modular/")
+all_mod <- tibble(name = c(rownames(net_list[[1]]),colnames(net_list[[1]])), 
+                  age = 80,
+                  original_module = 1)
+
+for(i in 2:length(net_list)){
+  set.seed(5)
+  mod <- computeModules(net_list[[i]])
+  assign(paste0("mod_",ages[i]),mod)
+  mod_list <- listModuleInformation(mod)[[2]]
+  nmod <- length(mod_list)
+  
+  for(m in 1:nmod){
+    members <- unlist(mod_list[[m]])
+    mtbl <- tibble(name = members, 
+                   age = rep(ages[i], length(members)),
+                   original_module = rep(m, length(members)))
+    
+    all_mod <- bind_rows(all_mod, mtbl)
+  }
+}
+
+# check modules for some network
+plotModuleWeb(mod_60, labsize = 0.4)
+
+
+  
+# __(Make tidygraphs with modules) ----
+
 minp <- 10
 
+list_tgraphs <- list()
 for(n in 1:length(net_list)){
   # get names from nets
   net <- net_list[[n]]
@@ -291,50 +321,42 @@ for(n in 1:length(net_list)){
   cnames <- colnames(net)
   
   # get weighted graph from list_m_at_ages - after setting minimum weight
-  matrix <- list_m_at_ages[[n]]
-  for(i in 1:nrow(matrix)){
-    for(j in 1:ncol(matrix)){
-      if(matrix[i,j] < minp/100){
-        matrix[i,j] = 0
+  wnet <- list_m_at_ages[[n]]
+  for(i in 1:nrow(wnet)){
+    for(j in 1:ncol(wnet)){
+      if(wnet[i,j] < minp/100){
+        wnet[i,j] = 0
       }
     }
   }
-  matrix = matrix[ rowSums(matrix)!=0, ]
-  matrix = matrix[ ,colSums(matrix)!=0 ]
+  wnet = wnet[ rowSums(wnet)!=0, ]
+  wnet = wnet[ ,colSums(wnet)!=0 ]
   
-  #graph <- graph_from_incidence_matrix(matrix, weighted = TRUE)
+  wgraph <- as_tbl_graph(wnet, directed = F) %>% 
+    left_join(filter(all_mod, age == ages[n]), by = "name") %>% 
+    select(type, name, original_module)
   
-  nCs <- length(cnames)
-  nRs <- length(rnames)
-  levels <- c(paste0("C",1:nCs), paste0("R",1:nRs))
+  #assign(paste0("wgraph_",ages[n]), wgraph)
   
-  # mod <- read.table(paste0(path_mod,"bl1/MEMBERS_net_",pt,"p_",ages[n],"Ma.txt"), header = TRUE) %>% 
-  #   mutate(Node = factor(Node, levels = levels), module = Module) %>% 
-  #   arrange(Node) %>% 
-  #   mutate(name = c(cnames,rnames))
-  
-  
-  mod <- read.csv(paste0(path_mod, "bl1/modules_pieridae.csv"), header = TRUE) %>% 
-    filter(age == ages[n])
-
-  tgraph <- as_tbl_graph(matrix) %>% 
-    left_join(mod, by = "name") %>% 
-    select(type, name, module) %>% 
-    mutate(#type = case_when(type == FALSE ~ "butterfly",
-           #                 type == TRUE ~ "plant"),
-           degree = centrality_degree()) %>% 
-    activate(edges) %>% 
-    mutate(highp = case_when(weight >= 0.8 ~ TRUE,
-                             weight < 0.8 ~ FALSE))
-  
-  # nodes <- get.data.frame(graph, what = "vertices") %>% 
-  #   left_join(mod, by = "name")
-  # V(graph)$module <- nodes$Module
-  
-  assign(paste0("tgraph_",ages[n]), tgraph)
+  list_tgraphs[[n]] <- wgraph
 }
 
-*/
+/*
+  
+# __Match modules across ages ----
+
+# if fixed on excel
+
+all_mod_edited <- read.csv(paste0(path_bip,"quant_modules_bipartite_seed5.csv"), header = T, stringsAsFactors = F)
+for(n in 1:length(ages)){
+  list_tgraphs[[n]] <- list_tgraphs[[n]] %>% 
+    activate(what = "nodes") %>% 
+    left_join(filter(all_wmod_edited, age == ages[n]) %>% select(name, module), by = "name")
+}
+
+
+
+
 
   
 /*# _Weighted networks with a low probability threshold ----
@@ -366,10 +388,9 @@ for(m in 1:length(list_m_at_ages)){
   #assign(paste0("net_",pt,"p_",ages[m]), matrix)
 }
 
-dim(list_wnets[[1]])
-#dim(list_wnets[[9]])
+list_wnets[[1]]
 
-/*
+
 # __Calculate weighted modularity with bipartite (STOCHASTIC STEP!)----
 
 all_wmod <- tibble()
