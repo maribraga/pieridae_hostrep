@@ -12,29 +12,11 @@
 
 
 #+ include = FALSE
-
-library(ape)
-library(phytools) # needed?
-library(dispRity)
-library(ggtree)
-library(picante)
-
 library(tidyverse)
 library(patchwork)
-library(wesanderson)
-
 library(MCMCpack)
 library(coda)
 library(kdensity)
-#library(phylotate) # needed?
-#library(data.table) # needed in script sourced
-
-library(bipartite)
-library(ggraph)
-library(tidygraph)
-library(igraph)
-#library(ndtv)        # needed?
-#library(intergraph)  # needed?
 
   
 #' ### Parameter Estimates
