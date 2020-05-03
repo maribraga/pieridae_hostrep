@@ -1,7 +1,7 @@
 Pieridae host repertoire - character history
 ================
 Mariana Braga
-02 May, 2020
+03 May, 2020
 
 -----
 
@@ -41,12 +41,15 @@ dim(ext_net)
 
 **Read in .history.txt files**
 
-These files can get quite big, so I can’t upload them in Github. Also,
-you might want to thin out these files to speed up their parsing. This
-is how you can do it.
+These files can get quite big, so I compressed them to upload on Github.
+You’ll have to unzip them first in your computer to use them. Also, you
+might want to thin out these files to speed up their parsing. In the
+original files, there is one sample every 50 generations. If you
+increase this interval, you reduce the number of samples. This is how
+you can do it.
 
-(Note that in the analyses in the paper we did not thin the histories,
-so we’ll show results with all sampled histories).
+*(Note that in the analyses in the paper we did not thin the histories,
+so we’ll show results with all sampled histories)*
 
 ``` r
 colclasses <- c(rep("numeric",7),"character","character","numeric","character",rep("numeric",3))
@@ -55,8 +58,8 @@ colclasses <- c(rep("numeric",7),"character","character","numeric","character",r
 ``` r
 history_dat_time = read.table("./inference/out.2.real.pieridae.2s.history.txt", sep="\t", header=T, colClasses = colclasses)
  
-# define burnin and sampling interval  
-it_seq <- seq(20000,200000, 100)  
+# define burnin and sampling interval (I'll keep the original interval) 
+it_seq <- seq(20000,200000, 50)  
 
 # Time-calibrated tree
 history_dat_time <- filter(history_dat_time, iteration %in% it_seq) %>% 
@@ -75,7 +78,7 @@ write.table(history_dat_bl1,"./inference/history.bl1.txt", sep="\t", quote = F, 
 
 The next time you run this script you just need to read in the thinned
 histories. One file with sampled histories when using the
-time-cklibrated host tree, and one using the transformed host tree (all
+time-calibrated host tree, and one using the transformed host tree (all
 branch lengths = 1).
 
 ``` r
@@ -99,13 +102,13 @@ n_events_bl1 <- group_by(history_dat_bl1,iteration) %>%
 (rate_time <- n_events_time/tree_length)
 ```
 
-    ## [1] 0.09766287
+    ## [1] 0.09754024
 
 ``` r
 (rate_bl1 <- n_events_bl1/tree_length)
 ```
 
-    ## [1] 0.09510045
+    ## [1] 0.0950814
 
 In both analyses, the rate of host repertoire evolution was near 1 event
 every 10 Myr (along each branch).
@@ -142,7 +145,7 @@ for (i in 1:(length(ages)-1)) {
 I have done this before and saved the list as a .rds file.
 
 ``` r
-list_m_at_ages <- readRDS("./inference/list_m_at_ages_time.rds")
+list_m_at_ages <- readRDS("./inference/list_m_at_ages_bl1.rds")
   
 length(list_m_at_ages)
 ```
@@ -153,13 +156,13 @@ length(list_m_at_ages)
 head(list_m_at_ages[[1]])
 ```
 
-    ##                Pseudopontia    Index_70   Index_129
-    ## Amborellaceae   0.002499306 0.003610108 0.001666204
-    ## Cabombaceae     0.006942516 0.011108026 0.004443210
-    ## Schisandraceae  0.015551236 0.021938350 0.010552624
-    ## Annonaceae      0.021938350 0.030824771 0.020549847
-    ## Siparunaceae    0.017772841 0.031380172 0.016106637
-    ## Saururaceae     0.011385726 0.026103860 0.009997223
+    ##                Pseudopontia     Index_70    Index_129
+    ## Amborellaceae  0.0066648153 0.0183282422 0.0077756179
+    ## Cabombaceae    0.0013885032 0.0005554013 0.0005554013
+    ## Schisandraceae 0.0097195224 0.0166620383 0.0066648153
+    ## Annonaceae     0.0016662038 0.0013885032 0.0005554013
+    ## Siparunaceae   0.0011108026 0.0016662038 0.0000000000
+    ## Saururaceae    0.0008331019 0.0011108026 0.0005554013
 
 Then we add the extant network in the list with all ancestral networks.
 
@@ -205,8 +208,8 @@ for(m in 1:length(list_m_at_ages)){
 net_list[[1]]
 ```
 
-    ##          Pseudopontia Index_70 Index_129
-    ## Fabaceae            1        1         1
+    ##          Index_70 Index_129
+    ## Fabaceae        1         1
 
 #### Calculate modularity
 
@@ -240,10 +243,22 @@ for(i in 2:length(net_list)){
 
 ``` r
 # check modules for some network
-plotModuleWeb(mod_40, labsize = 0.4)
+plotModuleWeb(mod_50, labsize = 0.4)
 ```
 
 ![](Pieridae_histories_files/figure-gfm/one_module-1.png)<!-- -->
+
+**Match modules across ages**
+
+I modified `all_mod` outside R to match the modules, so that all modules
+across ages containing, for example, Fabaceae, have the same name. Then
+I read it in as `all_mod_edited` and fixed the information in the
+tidygraphs.
+
+``` r
+#write.csv(all_mod, "all_mod_bl1.csv", row.names = F)    
+all_mod_edited <- read.csv("all_mod_bl1.csv", header = T, stringsAsFactors = F)
+```
 
 #### Make tidygraphs with module information
 
@@ -266,26 +281,10 @@ for(n in 1:length(net_list)){
   wnet = wnet[ ,colSums(wnet)!=0 ]
   
   wgraph <- as_tbl_graph(wnet, directed = F) %>% 
-    left_join(filter(all_mod, age == ages[n]), by = "name") %>% 
-    select(type, name, original_module)
+    left_join(filter(all_mod_edited, age == ages[n]), by = "name") %>% 
+    select(type, name, module)
 
   list_tgraphs[[n]] <- wgraph
-}
-```
-
-**Match modules across ages**
-
-I modified `all_mod` outside R to match the modules, so that all modules
-across ages containing, for example, Fabaceae, have the same name. Then
-I read it in as `all_mod_edited` and fixed the information in the
-tidygraphs.
-
-``` r
-all_mod_edited <- read.csv("all_mod_time.csv", header = T, stringsAsFactors = F)
-for(n in 1:length(ages)){
-  list_tgraphs[[n]] <- list_tgraphs[[n]] %>% 
-    activate(what = "nodes") %>% 
-    left_join(filter(all_mod_edited, age == ages[n]) %>% select(name, module), by = "name")
 }
 ```
 
@@ -324,6 +323,7 @@ list_tip_data[[9]] <- tibble(label = tree$tip.label) %>%
 
 ``` r
 # Choose colors and sizes
+# (T1 only exists in the analysis with the time-calibrated host tree)
 mod_levels <- c(paste0('M',1:12),'T1')
 custom_pal <- c("#b4356c","#1b1581","#e34c5b","#fca33a","#fbeba9","#fdc486",
                 "#802b72","#f8c4cc","#c8d9ee","#82a0be","#00a2bf","#006e82", 
@@ -427,7 +427,7 @@ el <- get.data.frame(graph, what = "edges") %>%
 Again, I ran this before and will read in the probability matrix now.
 
 ``` r
-el <- readRDS("./inference/states_at_nodes_time.rds")
+el <- readRDS("./inference/states_at_nodes_bl1.rds")
 
 # all interactions
 gg_all_nodes <- ggplot(el, aes(x = to, y = from)) +

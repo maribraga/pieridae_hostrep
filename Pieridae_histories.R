@@ -59,19 +59,22 @@ dim(ext_net)
 
 #' **Read in .history.txt files**
 #'
-#' These files can get quite big, so I can't upload them in Github.
-#' Also, you might want to thin out these files to speed up their parsing. 
+#' These files can get quite big, so I compressed them to upload on Github.
+#' You'll have to unzip them first in your computer to use them.
+#' Also, you might want to thin out these files to speed up their parsing.
+#' In the original files, there is one sample every 50 generations.
+#' If you increase this interval, you reduce the number of samples. 
 #' This is how you can do it.
 #' 
-#' (Note that in the analyses in the paper we did not thin the histories, 
-#' so we'll show results with all sampled histories).
+#' *(Note that in the analyses in the paper we did not thin the histories, 
+#' so we'll show results with all sampled histories)*
 
 colclasses <- c(rep("numeric",7),"character","character","numeric","character",rep("numeric",3))
 #+ eval = FALSE
 history_dat_time = read.table("./inference/out.2.real.pieridae.2s.history.txt", sep="\t", header=T, colClasses = colclasses)
  
-# define burnin and sampling interval  
-it_seq <- seq(20000,200000, 100)  
+# define burnin and sampling interval (I'll keep the original interval) 
+it_seq <- seq(20000,200000, 50)  
 
 # Time-calibrated tree
 history_dat_time <- filter(history_dat_time, iteration %in% it_seq) %>% 
@@ -88,7 +91,7 @@ history_dat_bl1 <- filter(history_dat_bl1, iteration %in% it_seq) %>%
 write.table(history_dat_bl1,"./inference/history.bl1.txt", sep="\t", quote = F, row.names = F)
 
 #' The next time you run this script you just need to read in the thinned histories.
-#' One file with sampled histories when using the time-cklibrated host tree,
+#' One file with sampled histories when using the time-calibrated host tree,
 #' and one using the transformed host tree (all branch lengths = 1).
 #' 
 
@@ -149,7 +152,7 @@ for (i in 1:(length(ages)-1)) {
 
 #' I have done this before and saved the list as a .rds file.
 #' 
-list_m_at_ages <- readRDS("./inference/list_m_at_ages_time.rds")
+list_m_at_ages <- readRDS("./inference/list_m_at_ages_bl1.rds")
   
 length(list_m_at_ages)
 head(list_m_at_ages[[1]])
@@ -230,8 +233,20 @@ for(i in 2:length(net_list)){
 
 #+ one_module, fig.width = 6.7, fig.height = 3.2
 # check modules for some network
-plotModuleWeb(mod_40, labsize = 0.4)
+plotModuleWeb(mod_50, labsize = 0.4)
 
+/*# __Match modules across ages ----
+*/
+  
+#' **Match modules across ages**
+#'        
+#' I modified `all_mod` outside R to match the modules, 
+#' so that all modules across ages containing, for example, Fabaceae, 
+#' have the same name. Then I read it in as `all_mod_edited`
+#' and fixed the information in the tidygraphs. 
+
+#write.csv(all_mod, "all_mod_bl1.csv", row.names = F)    
+all_mod_edited <- read.csv("all_mod_bl1.csv", header = T, stringsAsFactors = F)
 
 /*# __Make tidygraphs with modules ----
 */
@@ -255,28 +270,12 @@ for(n in 1:length(net_list)){
   wnet = wnet[ ,colSums(wnet)!=0 ]
   
   wgraph <- as_tbl_graph(wnet, directed = F) %>% 
-    left_join(filter(all_mod, age == ages[n]), by = "name") %>% 
-    select(type, name, original_module)
+    left_join(filter(all_mod_edited, age == ages[n]), by = "name") %>% 
+    select(type, name, module)
 
   list_tgraphs[[n]] <- wgraph
 }
 
-/*# __Match modules across ages ----
-*/
-
-#' **Match modules across ages**
-#'        
-#' I modified `all_mod` outside R to match the modules, 
-#' so that all modules across ages containing, for example, Fabaceae, 
-#' have the same name. Then I read it in as `all_mod_edited`
-#' and fixed the information in the tidygraphs. 
-
-all_mod_edited <- read.csv("all_mod_time.csv", header = T, stringsAsFactors = F)
-for(n in 1:length(ages)){
-  list_tgraphs[[n]] <- list_tgraphs[[n]] %>% 
-    activate(what = "nodes") %>% 
-    left_join(filter(all_mod_edited, age == ages[n]) %>% select(name, module), by = "name")
-}
 
 /*# __Make ggtree ----
 */
@@ -315,6 +314,7 @@ list_tip_data[[9]] <- tibble(label = tree$tip.label) %>%
 #' #### Plot networks and trees
 #'
 # Choose colors and sizes
+# (T1 only exists in the analysis with the time-calibrated host tree)
 mod_levels <- c(paste0('M',1:12),'T1')
 custom_pal <- c("#b4356c","#1b1581","#e34c5b","#fca33a","#fbeba9","#fdc486",
                 "#802b72","#f8c4cc","#c8d9ee","#82a0be","#00a2bf","#006e82", 
@@ -417,7 +417,7 @@ el <- get.data.frame(graph, what = "edges") %>%
 #' Again, I ran this before and will read in the probability matrix now.
 #' 
 
-el <- readRDS("./inference/states_at_nodes_time.rds")
+el <- readRDS("./inference/states_at_nodes_bl1.rds")
 
 # all interactions
 gg_all_nodes <- ggplot(el, aes(x = to, y = from)) +
