@@ -1,4 +1,4 @@
-Pieridae host repertoire - Character history 1
+Pieridae host repertoire - Character history
 ================
 Mariana Braga
 04 May, 2020
