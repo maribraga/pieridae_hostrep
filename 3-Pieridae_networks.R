@@ -208,13 +208,6 @@ for(g in ages[3:9]){
   assign(paste0("mod_plot_",g), gg)
 }
 
-(mod_plot_60 | mod_plot_50) /
-  (mod_plot_40 | mod_plot_30) /
-  (mod_plot_20 | mod_plot_10) /
-  (mod_plot_0) +
-  plot_layout(guides = 'collect')
-
-
 # nestedness
 for(g in ages[3:9]){
   gg <- ggplot(filter(Nnull, age == g)) +
@@ -229,11 +222,15 @@ for(g in ages[3:9]){
   assign(paste0("nodf_plot_",g), gg)
 }
 
-#(nodf_plot_80 | nodf_plot_70 | nodf_plot_60) /
-  (nodf_plot_50 | nodf_plot_40 | nodf_plot_30) /
-  (nodf_plot_20 | nodf_plot_10 | nodf_plot_0) +
+#+ z_dens, fig.width = 11, fig.height = 3
+(nodf_plot_60 / mod_plot_60 |
+  nodf_plot_50 / mod_plot_50 |
+  nodf_plot_40 / mod_plot_40 |
+  nodf_plot_30 / mod_plot_30 |
+  nodf_plot_20 / mod_plot_20 |
+  nodf_plot_10 / mod_plot_10 |
+  nodf_plot_0 / mod_plot_0) +
   plot_layout(guides = 'collect')
-
 
 # _Z-scores ----
 
@@ -285,41 +282,10 @@ plot_nz <- ggplot(Nzscore) +
   labs(title = "Nestedness, N", y = "Z-score", x = "Millions of years ago, Ma", col = "Null model") +
   theme_bw()
 
+#+ zscore, fig.width = 6.6, fig.height = 5.3, warning = FALSE
 plot_qz / plot_nz + plot_layout(guides = 'collect')
 
-/*
 
-# Checking null networks
-
-net0 <- Nulls_r00[[7]][,,1]
-net1 <- Nulls_c0[[7]][,,1]
-net2 <- Nulls_r2d[[7]][[1]]
-net <- list_wnets[[7]]
-
-net0 <- Nulls_random[[8]][,,10]
-net1 <- Nulls_colsums[[8]][,,10]
-net2 <- Nulls_allsums[[8]][,,10]
-net <- list_wnets[[8]]
-
-par(mfrow = c(2,2))
-
-visweb(net, type = "none", labsize = 0.1) #prednames = F, preynames = F)
-visweb(net2, type = "none", labsize = 0.1)
-visweb(net1, type = "none", labsize = 0.1)
-visweb(net0, type = "none", labsize = 0.1)
-
-visweb(net, type = "diagonal", labsize = 0.1) #prednames = F, preynames = F)
-visweb(net2, type = "diagonal", labsize = 0.1)
-visweb(net1, type = "diagonal", labsize = 0.1)
-visweb(net0, type = "diagonal", labsize = 0.1)
-
-visweb(net, type = "nested", labsize = 0.1) 
-visweb(net2, type = "nested", labsize = 0.1)
-visweb(net1, type = "nested", labsize = 0.1)
-visweb(net0, type = "nested", labsize = 0.1)
-
-
-plotModuleWeb(wmod_80)
 
 
 
@@ -339,8 +305,6 @@ for(i in 2:length(ages)){
   list_but_pd[[i]] <- bpd
 }
 
-str(list_but_pd)
-
 
 # _Plants ----
 
@@ -357,8 +321,6 @@ for(i in 2:length(ages)){
   ppd <- ses.pd(mod_matrix_hosts[[i]], host_subtree, null.model="taxa.labels") 
   list_host_pd[[i]] <- ppd
 }
-
-str(list_host_pd)
 
 
 mod_pd <- tibble()
@@ -400,7 +362,7 @@ gpdp <- ggplot(filter(mod_pd, type == "plant")) +
   labs(title = "Plants", color = "Module", x = "Millions of years ago, Ma", y = "PD z-score") +
   theme_bw()
 
-
+#+ pd, fig.width = 6.6, fig.height = 5.3, warning = FALSE
 gpdb / gpdp + plot_layout(guides = 'collect')
 
 
@@ -430,8 +392,41 @@ gnp <- ggplot() +
   labs(color = "Module", x = "Millions of years ago, Ma", y = "Number of plant taxa") +
   theme_bw()
 
+#+ nmod, fig.width = 6.6, fig.height = 5.3, warning = FALSE
 gnb / gnp + plot_layout(guides = 'collect')
 
 
+
+/*
+  # Checking null networks
+  
+  net0 <- Nulls_r00[[7]][,,1]
+net1 <- Nulls_c0[[7]][,,1]
+net2 <- Nulls_r2d[[7]][[1]]
+net <- list_wnets[[7]]
+
+net0 <- Nulls_random[[8]][,,10]
+net1 <- Nulls_colsums[[8]][,,10]
+net2 <- Nulls_allsums[[8]][,,10]
+net <- list_wnets[[8]]
+
+par(mfrow = c(2,2))
+
+visweb(net, type = "none", labsize = 0.1) #prednames = F, preynames = F)
+visweb(net2, type = "none", labsize = 0.1)
+visweb(net1, type = "none", labsize = 0.1)
+visweb(net0, type = "none", labsize = 0.1)
+
+visweb(net, type = "diagonal", labsize = 0.1) #prednames = F, preynames = F)
+visweb(net2, type = "diagonal", labsize = 0.1)
+visweb(net1, type = "diagonal", labsize = 0.1)
+visweb(net0, type = "diagonal", labsize = 0.1)
+
+visweb(net, type = "nested", labsize = 0.1) 
+visweb(net2, type = "nested", labsize = 0.1)
+visweb(net1, type = "nested", labsize = 0.1)
+visweb(net0, type = "nested", labsize = 0.1)
+
+plotModuleWeb(wmod_80)
 
 */

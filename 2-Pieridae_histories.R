@@ -313,12 +313,18 @@ list_tip_data[[9]] <- tibble(label = tree$tip.label) %>%
 
 #' #### Plot networks and trees
 #'
-# Choose colors and sizes
-# (T1 only exists in the analysis with the time-calibrated host tree)
+
+/* # if using time tree, these is T1
 mod_levels <- c(paste0('M',1:12),'T1')
 custom_pal <- c("#b4356c","#1b1581","#e34c5b","#fca33a","#fbeba9","#fdc486",
                 "#802b72","#f8c4cc","#c8d9ee","#82a0be","#00a2bf","#006e82", 
                 "grey10")
+*/
+  
+# Choose colors and sizes
+mod_levels <- paste0('M',1:12)
+custom_pal <- c("#b4356c","#1b1581","#e34c5b","#fca33a","#fbeba9","#fdc486",
+                "#802b72","#f8c4cc","#c8d9ee","#82a0be","#00a2bf","#006e82")
 tip_size = c(5,5,4,4,3,2,2,2,2)
 node_size = c(4,4,3,3,2,2,2,2,2)
 

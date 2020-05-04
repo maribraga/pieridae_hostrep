@@ -185,16 +185,6 @@ for(g in ages[3:9]){
   assign(paste0("mod_plot_",g), gg)
 }
 
-(mod_plot_60 | mod_plot_50) /
-  (mod_plot_40 | mod_plot_30) /
-  (mod_plot_20 | mod_plot_10) /
-  (mod_plot_0) +
-  plot_layout(guides = 'collect')
-```
-
-![](3-Pieridae_networks_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
-
-``` r
 # nestedness
 for(g in ages[3:9]){
   gg <- ggplot(filter(Nnull, age == g)) +
@@ -208,14 +198,20 @@ for(g in ages[3:9]){
   
   assign(paste0("nodf_plot_",g), gg)
 }
+```
 
-#(nodf_plot_80 | nodf_plot_70 | nodf_plot_60) /
-  (nodf_plot_50 | nodf_plot_40 | nodf_plot_30) /
-  (nodf_plot_20 | nodf_plot_10 | nodf_plot_0) +
+``` r
+(nodf_plot_60 / mod_plot_60 |
+  nodf_plot_50 / mod_plot_50 |
+  nodf_plot_40 / mod_plot_40 |
+  nodf_plot_30 / mod_plot_30 |
+  nodf_plot_20 / mod_plot_20 |
+  nodf_plot_10 / mod_plot_10 |
+  nodf_plot_0 / mod_plot_0) +
   plot_layout(guides = 'collect')
 ```
 
-![](3-Pieridae_networks_files/figure-gfm/unnamed-chunk-7-2.png)<!-- -->
+![](3-Pieridae_networks_files/figure-gfm/z_dens-1.png)<!-- -->
 
 ``` r
 # _Z-scores ----
@@ -280,16 +276,125 @@ plot_nz <- ggplot(Nzscore) +
   scale_x_reverse() +
   labs(title = "Nestedness, N", y = "Z-score", x = "Millions of years ago, Ma", col = "Null model") +
   theme_bw()
+```
 
+``` r
 plot_qz / plot_nz + plot_layout(guides = 'collect')
 ```
 
-    ## Warning: Removed 1 row(s) containing missing values (geom_path).
+![](3-Pieridae_networks_files/figure-gfm/zscore-1.png)<!-- -->
 
-    ## Warning: Removed 2 rows containing missing values (geom_point).
+``` r
+# Phylogenetic diversity ----
 
-    ## Warning: Removed 1 row(s) containing missing values (geom_path).
+# _Butterflies ----
 
-    ## Warning: Removed 2 rows containing missing values (geom_point).
+butterflies <- setdiff(all_mod_edited$name, host_tree$tip.label)
+mod_matrix <- filter(all_mod_edited, name %in% butterflies) %>% 
+  frame2webs(c("module","name","age"))
 
-![](3-Pieridae_networks_files/figure-gfm/unnamed-chunk-7-3.png)<!-- -->
+mod_matrix <- mod_matrix[rev(names(mod_matrix))]
+
+list_but_pd <- list()
+for(i in 2:length(ages)){
+  bpd <- ses.pd(mod_matrix[[i]], list_subtrees[[i]], null.model="taxa.labels") 
+  list_but_pd[[i]] <- bpd
+}
+
+
+# _Plants ----
+
+mod_matrix_hosts <- filter(all_mod_edited, name %in% host_tree$tip.label) %>% 
+  frame2webs(c("module","name","age"))
+
+mod_matrix_hosts <- mod_matrix_hosts[rev(names(mod_matrix_hosts))]
+
+list_host_pd <- list()
+for(i in 2:length(ages)){
+  
+  out <- setdiff(host_tree$tip.label,colnames(mod_matrix_hosts[[i]]))
+  host_subtree <- drop.tip(host_tree, out)
+  ppd <- ses.pd(mod_matrix_hosts[[i]], host_subtree, null.model="taxa.labels") 
+  list_host_pd[[i]] <- ppd
+}
+
+
+mod_pd <- tibble()
+for(i in 2:length(ages)){
+  age <- ages[i]
+  ppd <- list_host_pd[[i]]
+  bpd <- list_but_pd[[i]]
+  
+  btbl <- tibble(age=age, type="butterfly", module=rownames(bpd), 
+                 PDz=bpd$pd.obs.z, PDp=bpd$pd.obs.p, ntaxa=bpd$ntaxa)
+  ptbl <- tibble(age=age, type="plant", module=rownames(ppd), 
+                 PDz=ppd$pd.obs.z, PDp=ppd$pd.obs.p, ntaxa=ppd$ntaxa)
+  
+  mod_pd <- bind_rows(mod_pd, btbl, ptbl)
+}
+
+
+gpdb <- ggplot(filter(mod_pd, type == "butterfly")) +
+  geom_line(aes(age,PDz, group=factor(module, levels = mod_levels), 
+                col=factor(module, levels = mod_levels))) +
+  geom_point(aes(age,PDz, group=factor(module, levels = mod_levels), 
+                 col=factor(module, levels = mod_levels)),
+             data = filter(mod_pd, PDp <= 0.05, type == "butterfly"),
+             size = 2) +
+  scale_color_manual(values = custom_pal,na.value = "grey70", drop = F) +
+  scale_x_reverse() +
+  labs(title = "Butterflies", color = "Module", x = "Millions of years ago, Ma", y = "PD z-score") +
+  theme_bw()
+
+gpdp <- ggplot(filter(mod_pd, type == "plant")) +
+  geom_line(aes(age,PDz, group=factor(module, levels = mod_levels), 
+                col=factor(module, levels = mod_levels))) +
+  geom_point(aes(age,PDz, group=factor(module, levels = mod_levels), 
+                 col=factor(module, levels = mod_levels)),
+             data = filter(mod_pd, PDp <= 0.05, type == "plant"),
+             size = 2) +
+  scale_color_manual(values = custom_pal,na.value = "grey70", drop = F) +
+  scale_x_reverse() +
+  labs(title = "Plants", color = "Module", x = "Millions of years ago, Ma", y = "PD z-score") +
+  theme_bw()
+```
+
+``` r
+gpdb / gpdp + plot_layout(guides = 'collect')
+```
+
+![](3-Pieridae_networks_files/figure-gfm/pd-1.png)<!-- -->
+
+``` r
+# Number of nodes and modules through time ----
+
+gnb <- ggplot() + 
+  geom_point(data=filter(mod_pd, type == "butterfly"), 
+             aes(age,ntaxa, col = factor(module, levels = mod_levels)),
+             alpha = 0.7) + 
+  geom_line(data=filter(mod_pd, type == "butterfly"),
+            aes(age,ntaxa, col = factor(module, levels = mod_levels))) + 
+  #geom_point(data=filter(mod_pd, type == "plant"), aes(age,ntaxa, col = factor(module, levels = mod_levels)), shape = "square") + 
+  scale_color_manual(values = custom_pal,na.value = "grey70", drop = F) +
+  #scale_shape_manual(values = c("square","circle")) +
+  scale_x_reverse() +
+  labs(color = "Module", x = "Millions of years ago, Ma", y = "Number of butterfly taxa") +
+  theme_bw()
+            
+gnp <- ggplot() + 
+  geom_point(data=filter(mod_pd, type == "plant"), 
+              aes(age,ntaxa, col = factor(module, levels = mod_levels)),
+              alpha = 0.7) + 
+  geom_line(data=filter(mod_pd, type == "plant"),
+            aes(age,ntaxa, col = factor(module, levels = mod_levels))) + 
+  scale_color_manual(values = custom_pal,na.value = "grey70", drop = F) +
+  scale_x_reverse() +
+  labs(color = "Module", x = "Millions of years ago, Ma", y = "Number of plant taxa") +
+  theme_bw()
+```
+
+``` r
+gnb / gnp + plot_layout(guides = 'collect')
+```
+
+![](3-Pieridae_networks_files/figure-gfm/nmod-1.png)<!-- -->
