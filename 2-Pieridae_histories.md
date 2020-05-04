@@ -1,7 +1,7 @@
-Pieridae host repertoire - character history
+Pieridae host repertoire - Character history 1
 ================
 Mariana Braga
-03 May, 2020
+04 May, 2020
 
 -----
 
@@ -246,7 +246,7 @@ for(i in 2:length(net_list)){
 plotModuleWeb(mod_50, labsize = 0.4)
 ```
 
-![](Pieridae_histories_files/figure-gfm/one_module-1.png)<!-- -->
+![](2-Pieridae_histories_files/figure-gfm/one_module-1.png)<!-- -->
 
 **Match modules across ages**
 
@@ -256,8 +256,8 @@ I read it in as `all_mod_edited` and fixed the information in the
 tidygraphs.
 
 ``` r
-#write.csv(all_mod, "all_mod_bl1.csv", row.names = F)    
-all_mod_edited <- read.csv("all_mod_bl1.csv", header = T, stringsAsFactors = F)
+#write.csv(all_mod, "./networks/all_mod_bl1.csv", row.names = F)    
+all_mod_edited <- read.csv("./networks/all_mod_bl1.csv", header = T, stringsAsFactors = F)
 ```
 
 #### Make tidygraphs with module information
@@ -323,11 +323,9 @@ list_tip_data[[9]] <- tibble(label = tree$tip.label) %>%
 
 ``` r
 # Choose colors and sizes
-# (T1 only exists in the analysis with the time-calibrated host tree)
-mod_levels <- c(paste0('M',1:12),'T1')
+mod_levels <- paste0('M',1:12)
 custom_pal <- c("#b4356c","#1b1581","#e34c5b","#fca33a","#fbeba9","#fdc486",
-                "#802b72","#f8c4cc","#c8d9ee","#82a0be","#00a2bf","#006e82", 
-                "grey10")
+                "#802b72","#f8c4cc","#c8d9ee","#82a0be","#00a2bf","#006e82")
 tip_size = c(5,5,4,4,3,2,2,2,2)
 node_size = c(4,4,3,3,2,2,2,2,2)
 
@@ -343,16 +341,19 @@ for(i in 1:length(ages)){
   
   assign(paste0("ggt_",ages[[i]]), ggt)
   
-  graph <- list_tgraphs[[i]]
+  graph <- list_tgraphs[[i]] %E>% 
+    mutate(highpp = case_when(weight >= 0.9 ~ "high",
+                              weight < 0.9 ~ "low"))
   laybip = layout_as_bipartite(graph)
   laybip = laybip[,c(2,1)]
   
   ggn <- ggraph(graph, layout = laybip) +
-    geom_edge_link(aes(width = weight), color = "grey50") + 
+    geom_edge_link(aes(width = weight, color = highpp)) + 
     geom_node_point(aes(shape = type, color = factor(module, levels = mod_levels)), size = node_size[i]) +
     scale_shape_manual(values = c("square","circle")) +
     scale_color_manual(values = custom_pal, na.value = "grey70", drop = F) +
     scale_edge_width("Probability", range = c(0.1,1)) +
+    scale_edge_color_manual(values = c("grey50","grey80")) +
     labs(title = paste0(ages[[i]]," Ma"), shape = "", color = "Module") +    # CHANGE
     theme_void() +
     theme(legend.position = "none")
@@ -363,10 +364,10 @@ for(i in 1:length(ages)){
 # define layout
 design <- c(patchwork::area(1, 1, 1, 1),
             patchwork::area(1, 2, 1, 2),
-            patchwork::area(3, 1, 4, 1),
-            patchwork::area(3, 2, 4, 2),
-            patchwork::area(6, 1, 8, 1),
-            patchwork::area(6, 2, 8, 2),
+            patchwork::area(3, 1, 3, 1),
+            patchwork::area(3, 2, 3, 2),
+            patchwork::area(6, 1, 7, 1),
+            patchwork::area(6, 2, 7, 2),
             patchwork::area(10,1,12, 1),
             patchwork::area(10,2,12, 2),
             patchwork::area(1, 4, 3, 4),
@@ -395,7 +396,7 @@ ggt_80 + ggn_80 +
   plot_layout(design = design)
 ```
 
-![](Pieridae_histories_files/figure-gfm/fig3-1.png)<!-- -->
+![](2-Pieridae_histories_files/figure-gfm/fig3-1.png)<!-- -->
 
 ### States at internal nodes
 
@@ -463,7 +464,7 @@ gg_high_nodes <- filter(el, p > 0.9) %>%
 gg_all_nodes + gg_high_nodes
 ```
 
-![](Pieridae_histories_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
+![](2-Pieridae_histories_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
 
 Other plots to combine with extant butterfly tree and ancestral states
 at nodes
@@ -501,7 +502,7 @@ ggplot(plot_net, aes(x = from, y = to, fill = factor(Module, levels = mod_levels
     axis.title.y = element_blank())
 ```
 
-![](Pieridae_histories_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
+![](2-Pieridae_histories_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
 
   - **Host tree with modules**
 
@@ -530,4 +531,4 @@ ggtree_but <- ggtree(tree) + geom_tiplab(size = 2) + geom_nodelab(size = 2) +
 ggtree_host + ggtree_but + plot_layout(widths = c(2,3))
 ```
 
-![](Pieridae_histories_files/figure-gfm/unnamed-chunk-27-1.png)<!-- -->
+![](2-Pieridae_histories_files/figure-gfm/unnamed-chunk-27-1.png)<!-- -->

@@ -1,7 +1,7 @@
 Pieridae host repertoire - parameters
 ================
 Mariana Braga
-29 April, 2020
+04 May, 2020
 
 -----
 
@@ -77,7 +77,7 @@ posterior <- bind_rows(postt,postb) %>%
   mutate(tree = c(rep("time", 3601),rep("bl1", 3601)))
 
 means <- group_by(posterior, tree) %>% 
-  select(-generation) %>% 
+  dplyr::select(-generation) %>% 
   summarise_all(mean)
 means
 ```
@@ -138,12 +138,12 @@ gg20 <- ggplot(all_post, aes(`lambda[20]`)) +
 ggclock + ggbeta + gg02 + gg20 + plot_layout(ncol = 4, guides = 'collect')
 ```
 
-![](Pieridae_parameters_files/figure-gfm/densities-1.png)<!-- -->
+![](1-Pieridae_parameters_files/figure-gfm/densities-1.png)<!-- -->
 
 **Bayes factor**
 
-With Bayes factors we check which model has more support, the full model
-(with beta) or the simplified model where beta = 0.
+With Bayes factors we check which model has more support, the full
+model, where beta \> 0, or the simplified model where beta = 0.
 
 ``` r
 d_prior <- dexp(x=0, rate=1)
@@ -170,4 +170,7 @@ max_bl1 = kd_beta_bl1(0)
 
     ## [1] 65545525
 
-Now we are ready to move on to Character history inference
+According to the calculated Bayes factors, both analyses support the
+full model, where beta \> 0.
+
+Now we are ready to move on to Character history inference.
