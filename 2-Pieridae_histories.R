@@ -245,8 +245,8 @@ plotModuleWeb(mod_50, labsize = 0.4)
 #' have the same name. Then I read it in as `all_mod_edited`
 #' and fixed the information in the tidygraphs. 
 
-#write.csv(all_mod, "all_mod_bl1.csv", row.names = F)    
-all_mod_edited <- read.csv("all_mod_bl1.csv", header = T, stringsAsFactors = F)
+#write.csv(all_mod, "./networks/all_mod_bl1.csv", row.names = F)    
+all_mod_edited <- read.csv("./networks/all_mod_bl1.csv", header = T, stringsAsFactors = F)
 
 /*# __Make tidygraphs with modules ----
 */
@@ -354,10 +354,10 @@ for(i in 1:length(ages)){
 # define layout
 design <- c(patchwork::area(1, 1, 1, 1),
             patchwork::area(1, 2, 1, 2),
-            patchwork::area(3, 1, 4, 1),
-            patchwork::area(3, 2, 4, 2),
-            patchwork::area(6, 1, 8, 1),
-            patchwork::area(6, 2, 8, 2),
+            patchwork::area(3, 1, 3, 1),
+            patchwork::area(3, 2, 3, 2),
+            patchwork::area(6, 1, 7, 1),
+            patchwork::area(6, 2, 7, 2),
             patchwork::area(10,1,12, 1),
             patchwork::area(10,2,12, 2),
             patchwork::area(1, 4, 3, 4),
@@ -384,6 +384,47 @@ ggt_80 + ggn_80 +
   ggt_0 + ggn_0 +
   plot_layout(design = design)
 
+
+/*# ___Plot only high pp interactions ----
+*/  
+
+#' **Plot only high probability interactions**
+#'
+
+for(i in 1:length(ages)){
+  
+  graph <- list_tgraphs[[i]] %E>% 
+    mutate(highpp = case_when(weight >= 0.9 ~ "high",
+                              weight < 0.9 ~ "low"))
+  laybip = layout_as_bipartite(graph)
+  laybip = laybip[,c(2,1)]
+  
+  ggn <- ggraph(graph, layout = laybip) +
+    geom_edge_link(aes(width = weight, color = highpp)) + 
+    geom_node_point(aes(shape = type, color = factor(module, levels = mod_levels)), size = node_size[i]) +
+    scale_shape_manual(values = c("square","circle")) +
+    scale_color_manual(values = custom_pal, na.value = "grey70", drop = F) +
+    scale_edge_width("Probability", range = c(0.1,1)) +
+    scale_edge_color_manual(values = c("grey50","grey80")) +
+    labs(title = paste0(ages[[i]]," Ma"), shape = "", color = "Module") +    # CHANGE
+    theme_void() +
+    theme(legend.position = "none")
+  
+  assign(paste0("ggn_90_",ages[[i]]), ggn)
+}      
+
+#+ fig3_90, fig.width = 18, fig.height = 18, warning = F
+# plot!
+ggt_80 + ggn_90_80 +
+  ggt_70 + ggn_90_70 +
+  ggt_60 + ggn_90_60 +
+  ggt_50 + ggn_90_50 +
+  ggt_40 + ggn_90_40 +
+  ggt_30 + ggn_90_30 +
+  ggt_20 + ggn_90_20 +
+  ggt_10 + ggn_90_10 +
+  ggt_0 + ggn_90_0 +
+  plot_layout(design = design)
 
 
 /*## States at nodes ----

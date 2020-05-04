@@ -10,22 +10,18 @@
 #' Script 3 for empirical study performed in Braga et al. 2020
 #' *Evolution of butterfly-plant networks revealed by Bayesian inference of host repertoire*.
 #'
-#' (You must have finished script 2 first)
+#' This is a continuation of script 2 - Character history, so make sure you complete that one first.
 
 #+ include = FALSE
 
-library(ape)
-library(ggtree)
 library(picante)
-
 library(tidyverse)
 library(patchwork)
 library(wesanderson)
-
 library(bipartite)
 library(ggraph)
 library(tidygraph)
-library(igraph)
+#library(igraph)
 
 load("./inference/char_hist.RData")
 
@@ -83,150 +79,122 @@ gg_size_r <- ggplot(net_size_r, aes(age,value, col = index)) +
 gg_size_n + gg_size_r 
 
 
-/*
-# Null models ----
-# r00_samp (random), c0_samp (keeps column sums), r2d (keeps marginal sums)
+#' ## Network structure
+#' 
+#' ### Null models
+#' 
+#' We are gonna generate networks using two null models.
+#' `r00` only keeps the size and number of interactions of the original network,
+#' while `r2dtable` also keeps the marginal sums, i.e. the number of interactions 
+#' that each butterfly/plant has.
 
+/*# Null models ----
+*/
+
+# gotta skip network at 80 Ma because it only has one host
 Nulls_r00 <- list()
-Nulls_c0 <- list()
 Nulls_r2d <- list()
 
 nit <- 1000
 
-for(i in 1:length(ages)){
-  null_r00 <- vegan::nullmodel(list_wnets[[i]], "r00_samp") 
+for(i in 2:length(ages)){
+  null_r00 <- vegan::nullmodel(net_list[[i]], "r00") 
   sim_r00 <- simulate(null_r00, nsim=nit, seed = 1)
   Nulls_r00[[i]] <- sim_r00
   
-  null_c0 <- vegan::nullmodel(list_wnets[[i]], "c0_samp") 
-  sim_c0 <- simulate(null_c0, nsim=nit, seed = 1)
-  Nulls_c0[[i]] <- sim_c0
-  
-  if(ages[i] == 0){
-    count <- list_wnets[[i]]
-  } else {
-    count <- round(list_wnets[[i]]*100)
-  }
-  
-  null_r2d <- bipartite::nullmodel(count, N=nit, method=1)
-  Nulls_r2d[[i]] <- null_r2d
+  null_r2d <- vegan::nullmodel(net_list[[i]], "r2dtable") 
+  sim_r2d <- simulate(null_r2d, nsim=nit, seed = 1)
+  #null_r2d <- bipartite::nullmodel(count, N=nit, method=1)
+  Nulls_r2d[[i]] <- sim_r2d
   
 }  
 
-# second round of null models
 
-Nulls_random <- list()
-Nulls_colsums <- list()
-Nulls_allsums <- list()
-
-nit <- 1000
-
-for(i in 1:length(ages)){
   
-  if(ages[i] == 0){
-    count <- list_wnets[[i]]
-  } else {
-    count <- round(list_wnets[[i]]*100)
+/*# _Modularity ----
+*/
+
+#' ### Modularity
+#' 
+#' Let's calculate the modularity of each null network,
+#' except for 80, 70, and 60 Ma. They are too small.
+  
+source("my_compute_module.R")  
+
+#+ eval = FALSE  
+Qnull <- tibble()
+
+for(i in 3:length(ages)){
+
+  sim_random <- Nulls_r00[[i]]
+  sim_allsums <- Nulls_r2d[[i]]
+
+  for(j in 1:nit){
+    Qrandom <- mycomputeModules(sim_random[,,j])@likelihood
+    Qallsums <- mycomputeModules(sim_allsums[,,j])@likelihood
+
+    Qnull <- bind_rows(Qnull, tibble(age = ages[i], sim=j, allsums=Qallsums, random=Qrandom))
   }
-  
-  null_r00 <- vegan::nullmodel(count, "r00_both") 
-  sim_r00 <- simulate(null_r00, nsim=nit, seed = 1)
-  Nulls_random[[i]] <- sim_r00
-  
-  null_c0 <- vegan::nullmodel(count, "c0_both") 
-  sim_c0 <- simulate(null_c0, nsim=nit, seed = 1)
-  Nulls_colsums[[i]] <- sim_c0
-  
-  null_swap <- vegan::nullmodel(count, "quasiswap_count") 
-  sim_swap <- simulate(null_swap, nsim=nit, seed = 1)
-  Nulls_allsums[[i]] <- sim_swap
-  
-} 
+}
 
-  
-# _Modularity ----
+Qnull <- Qnull %>% pivot_longer(3:4, names_to = "model", values_to = "Q")
 
-# slow!
+/*
+saveRDS(Qnull, "./networks/Qnull.rds")
+*/
 
-# Qnull <- tibble()
-# 
-# for(i in 1:length(ages)){
-# 
-#   sim_random <- Nulls_random[[i]]
-#   sim_colsums <- Nulls_colsums[[i]]
-#   sim_allsums <- Nulls_allsums[[i]]
-# 
-#   for(j in 1:nit){
-#     Qrandom <- computeModules(sim_random[,,j])@likelihood
-#     Qcolsums <- computeModules(sim_colsums[,,j])@likelihood
-#     Qallsums <- computeModules(sim_allsums[,,j])@likelihood
-# 
-#     Qnull <- bind_rows(Qnull, tibble(age = ages[i], sim=j, allsums=Qallsums, random=Qrandom, colsums=Qcolsums))
-#   }
-# }
-
-Qnull <- Qnull %>% pivot_longer(3:5, names_to = "model", values_to = "Q")
-
-
-# observed 
+#+ 
+Qnull <- readRDS("./networks/Qnull.rds")
+    
+# observed
 Qobs <- tibble()
 
-for(i in 1:length(ages)){
-  q <- get(paste0("wmod_",ages[i]))
+for(i in 3:length(ages)){
+  q <- get(paste0("mod_",ages[i]))
   Qobs<- bind_rows(Qobs, tibble(age = ages[i], Q = q@likelihood))
 }
 
 
 # _Nestedness ----
 
+# do not calculate for networks at 80 and 70 Ma. They are too small. 
 Nnull <- tibble()
 
-for(i in 1:length(ages)){
+for(i in 3:length(ages)){
   
-  sim_random <- Nulls_random[[i]]
-  sim_colsums <- Nulls_colsums[[i]]
-  sim_allsums <- Nulls_allsums[[i]]  
+  sim_random <- Nulls_r00[[i]]
+  sim_allsums <- Nulls_r2d[[i]]  
   
-  if(ages[i] == 0){
-    for(j in 1:nit){
-      Nrandom <- networklevel(sim_random[,,j],index="NODF")
-      Ncolsums <- networklevel(sim_colsums[,,j],index="NODF")
-      Nallsums <- networklevel(sim_allsums[,,j],index="NODF")
-      Nnull <- bind_rows(Nnull, tibble(age = ages[i], sim=j, 
-                                       colsums=Ncolsums, random=Nrandom, allsums=Nallsums))
-    }
-  } else {
-    for(j in 1:nit){
-      Nrandom <- networklevel(sim_random[,,j],index="weighted NODF")
-      Ncolsums <- networklevel(sim_colsums[,,j],index="weighted NODF")
-      Nallsums <- networklevel(sim_allsums[,,j],index="weighted NODF")
-      Nnull <- bind_rows(Nnull, tibble(age = ages[i], sim=j,
-                                       colsums=Ncolsums, random=Nrandom, allsums=Nallsums))
-    }
+  for(j in 1:nit){
+    Nrandom <- networklevel(sim_random[,,j],index="NODF")
+    Nallsums <- networklevel(sim_allsums[,,j],index="NODF")
+    Nnull <- bind_rows(Nnull, tibble(age = ages[i], sim=j, random=Nrandom, allsums=Nallsums))
   }
 }
 
-Nnull <- Nnull %>% pivot_longer(3:5, names_to = "model", values_to = "N")
+Nnull <- Nnull %>% pivot_longer(3:4, names_to = "model", values_to = "N")
+
+/*
+saveRDS(Nnull, "./networks/Nnull.rds")
+*/
+  
+#+ 
+Nnull <- readRDS("./networks/Nnull.rds")
 
 
 # observed
 Nobs <- tibble()
 
-for(i in 1:length(ages)){
-  if(ages[i] == 0){
-    nodf <- networklevel(list_wnets[[i]],index="NODF")
+for(i in 3:length(ages)){
+    nodf <- networklevel(net_list[[i]],index="NODF")
     Nobs<- bind_rows(Nobs, tibble(age = ages[i], nodf = nodf))
-  } else {
-    nodf <- networklevel(list_wnets[[i]],index="weighted NODF")
-    Nobs<- bind_rows(Nobs, tibble(age = ages[i], nodf = nodf))
-  }
 }
 
 
 # _Density plots ----
 
 # modularity
-for(g in ages){
+for(g in ages[3:9]){
   
   gg <- ggplot(filter(Qnull, age == g)) +
     geom_density(aes(Q, group = model, color = model)) +
@@ -240,14 +208,15 @@ for(g in ages){
   assign(paste0("mod_plot_",g), gg)
 }
 
-(mod_plot_80 | mod_plot_70 | mod_plot_60) /
-  (mod_plot_50 | mod_plot_40 | mod_plot_30) /
-  (mod_plot_20 | mod_plot_10 | mod_plot_0) +
+(mod_plot_60 | mod_plot_50) /
+  (mod_plot_40 | mod_plot_30) /
+  (mod_plot_20 | mod_plot_10) /
+  (mod_plot_0) +
   plot_layout(guides = 'collect')
 
 
 # nestedness
-for(g in ages){
+for(g in ages[3:9]){
   gg <- ggplot(filter(Nnull, age == g)) +
     geom_density(aes(N, group = model, color = model)) +
     scale_color_grey() +
@@ -260,7 +229,7 @@ for(g in ages){
   assign(paste0("nodf_plot_",g), gg)
 }
 
-(nodf_plot_80 | nodf_plot_70 | nodf_plot_60) /
+#(nodf_plot_80 | nodf_plot_70 | nodf_plot_60) /
   (nodf_plot_50 | nodf_plot_40 | nodf_plot_30) /
   (nodf_plot_20 | nodf_plot_10 | nodf_plot_0) +
   plot_layout(guides = 'collect')
@@ -294,7 +263,7 @@ Nzscore <- Nnull %>%
 
 # colors from parameter estimates plot
 palwes <- wes_palette("Zissou1", 4, type = "continuous")
-pal <- c(palwes[4],palwes[3],palwes[1])
+pal <- c(palwes[4],palwes[1])
 
 plot_qz <- ggplot(Qzscore) +
   geom_line(aes(age, z, group = model, col = model)) +
@@ -318,7 +287,7 @@ plot_nz <- ggplot(Nzscore) +
 
 plot_qz / plot_nz + plot_layout(guides = 'collect')
 
-
+/*
 
 # Checking null networks
 
@@ -358,14 +327,14 @@ plotModuleWeb(wmod_80)
 
 # _Butterflies ----
 
-butterflies <- setdiff(all_wmod_edited$name, host_tree$tip.label)
-mod_matrix <- filter(all_wmod_edited, name %in% butterflies) %>% 
+butterflies <- setdiff(all_mod_edited$name, host_tree$tip.label)
+mod_matrix <- filter(all_mod_edited, name %in% butterflies) %>% 
   frame2webs(c("module","name","age"))
 
 mod_matrix <- mod_matrix[rev(names(mod_matrix))]
 
 list_but_pd <- list()
-for(i in 1:length(ages)){
+for(i in 2:length(ages)){
   bpd <- ses.pd(mod_matrix[[i]], list_subtrees[[i]], null.model="taxa.labels") 
   list_but_pd[[i]] <- bpd
 }
@@ -375,13 +344,13 @@ str(list_but_pd)
 
 # _Plants ----
 
-mod_matrix_hosts <- filter(all_wmod_edited, name %in% host_tree$tip.label) %>% 
+mod_matrix_hosts <- filter(all_mod_edited, name %in% host_tree$tip.label) %>% 
   frame2webs(c("module","name","age"))
 
 mod_matrix_hosts <- mod_matrix_hosts[rev(names(mod_matrix_hosts))]
 
 list_host_pd <- list()
-for(i in 1:length(ages)){
+for(i in 2:length(ages)){
   
   out <- setdiff(host_tree$tip.label,colnames(mod_matrix_hosts[[i]]))
   host_subtree <- drop.tip(host_tree, out)
@@ -393,7 +362,7 @@ str(list_host_pd)
 
 
 mod_pd <- tibble()
-for(i in 1:length(ages)){
+for(i in 2:length(ages)){
   age <- ages[i]
   ppd <- list_host_pd[[i]]
   bpd <- list_but_pd[[i]]
@@ -465,145 +434,4 @@ gnb / gnp + plot_layout(guides = 'collect')
 
 
 
-
-
-# -------- END of main script -------- #
-
-
-#set.seed(2)
-
-cz <- czvalues(wmod_0, weighted = T, level = "lower")
-plot(cz[[1]], cz[[2]], pch=16, xlab="c", ylab="z", cex=0.8, xlim=c(0,1), las=1)
-abline(v=0.62) # threshold of Olesen et al. 2007
-abline(h=2.5)   # dito
-text(cz[[1]], cz[[2]], names(cz[[1]]), pos=4, cex=0.7)
-
-# example for computing a c- or z-threshold:
-czobs <- czvalues(wmod_20, weighted = T, level = "lower")
-nulls <- nullmodel(list_wnets[[7]], N=10) # this should be larger, of course
-null.mod.list <- sapply(nulls, computeModules)
-null.cz <- lapply(null.mod.list, czvalues)
-# compute 95
-null.cs <- sapply(null.cz, function(x) x$c) # c-values across all species in nulls
-quantile(null.cs, 0.95) 
-# this could now serve as thresholds for identifying particularly uncommonly high c-values
-# and analogously for z, of course
-
-
-
-
-# ----------- Plot all nets with ggplot ---------- #
-
-tree <- list_subtrees[[2]]
-graph <- list_tgraphs[[2]] %>% 
-     activate(what = "nodes") %>%
-     mutate(degree = centrality_degree(weights = weight))
-
-mod <- all_wmod_edited %>% filter(age == ages[1])
-
-edge_list <- get.data.frame(graph, what = "edges") %>%
-  inner_join(mod %>% select(name, module), by = c("from" = "name")) %>%
-  inner_join(mod %>% select(name, module), by = c("to" = "name")) %>%
-  mutate(Module = ifelse(module.x == module.y, module.x, NA)) #%>% factor())
-
-# by phylo
-phylob <- tree$tip.label
-phylop <- host_tree$tip.label
-
-plot_net <- edge_list %>% mutate(
-  to = factor(to, levels = phylob),
-  from = factor(from, levels = phylop))
-
-# by degree
-korder1 <- graph %>% as_tibble() %>% filter(type == TRUE) %>% arrange(degree) %>% pull(name)
-korder2 <- graph %>% as_tibble() %>% filter(type == FALSE) %>% arrange(desc(degree)) %>% pull(name)
-
-plot_net <- edge_list %>% mutate(
-  to = factor(to, levels = korder1),
-  from = factor(from, levels = korder2))
-
-
-ggplot(plot_net, aes(x = from, y = to, fill = factor(Module, levels = mod_levels), alpha = weight)) +
-  geom_tile() +
-  theme_bw() +
-  scale_x_discrete(drop = FALSE) +
-  scale_y_discrete(drop = FALSE) +
-  scale_fill_manual(values = custom_pal, na.value = "grey70", drop = F) +
-  labs(fill = "Module") +
-  theme(
-    axis.text.x = element_text(angle = 270, hjust = 0, size = 6),
-    axis.text.y = element_text(size = 6),
-    axis.title.x = element_blank(),
-    axis.title.y = element_blank(),
-    legend.position = "none")
-
-# ---------------------------------------- #
-
-
-
-
-
-
-ggn_80 + geom_node_text(aes(label = name), repel = T)
-
-
-#Plot tree for each age
-
-plot(tree_10, cex = 0.5)
-axisPhylo()
-
-
-# tests
-
-ages
-tree <- read.tree(paste0(path_data,"tree_index.tre"), node.label = paste0("Index",67:131))
-tree$Nnode
-
-# Trying to set node labels to match RevBayes output
-tree <- read.newick(paste0(path_data,"tree_nodelab.tre"), node.label = "label")
-ggtree(tree) + geom_nodelab() + geom_tiplab() + theme_tree2()
-#same as
-#plot(tree, show.node.label = T)
-#
-# node labels are read if using treeio (read.newick instead of read.tree)
-# but treeSlice ignores it!
-root_age <- node.depth.edgelength(tree)[1]
-for(i in ages){
-  subtree <- treeSlice(tree, root_age - i, orientation = "rootwards")
-  assign(paste0("tree_",i), subtree)
-}
-
-plot(tree_80)
-
-# Trying to set node labels to match RevBayes output, but nodes are labeled from the root in R and from tips in rb
-tree2 <- makeNodeLabel(tree)
-tree2$node.label
-tree2$node.label <- paste0("Index",131:67)
-plot(tree2, show.node.label = T)
-# ---
-
-
-
-
-
-
-
-# # get weighted edge lists from list_m_at_ages (to plot probabilities) 
-# el_ages <- tibble()
-# for (i in 1:length(list_m_at_ages)){
-#   graph <- graph_from_incidence_matrix(list_m_at_ages[[i]], weighted = TRUE)
-#   nodes <- get.data.frame(graph, what = "vertices")
-#   node_list <- full_join(nodes, nodes_mod) %>% 
-#     dplyr::select(name, mod2) %>% 
-#     dplyr::rename(mod = mod2)
-#   
-#   el <- get.data.frame(graph, what = "edges") %>% 
-#     inner_join(node_list %>% dplyr::select(name, mod), by = c("to" = "name")) %>%
-#     mutate(age = ages[i],
-#            to = factor(to, levels = hosts),
-#            from = factor(from, levels = c(rev(tree$tip.label), paste0("Index_",67:131)))) %>% 
-#     rename(p = weight)
-#   
-#   el_ages <- bind_rows(el_ages,el)
-# }
 */
