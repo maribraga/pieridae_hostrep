@@ -1,5 +1,5 @@
 #'---
-#'title: "Pieridae host repertoire - character history"
+#'title: "Pieridae host repertoire - Character history 1"
 #'author: "Mariana Braga"
 #'date: "`r format(Sys.time(), '%d %B, %Y')`"
 #'output: github_document
@@ -340,16 +340,19 @@ for(i in 1:length(ages)){
   
   assign(paste0("ggt_",ages[[i]]), ggt)
   
-  graph <- list_tgraphs[[i]]
+  graph <- list_tgraphs[[i]] %E>% 
+    mutate(highpp = case_when(weight >= 0.9 ~ "high",
+                              weight < 0.9 ~ "low"))
   laybip = layout_as_bipartite(graph)
   laybip = laybip[,c(2,1)]
   
   ggn <- ggraph(graph, layout = laybip) +
-    geom_edge_link(aes(width = weight), color = "grey50") + 
+    geom_edge_link(aes(width = weight, color = highpp)) + 
     geom_node_point(aes(shape = type, color = factor(module, levels = mod_levels)), size = node_size[i]) +
     scale_shape_manual(values = c("square","circle")) +
     scale_color_manual(values = custom_pal, na.value = "grey70", drop = F) +
     scale_edge_width("Probability", range = c(0.1,1)) +
+    scale_edge_color_manual(values = c("grey50","grey80")) +
     labs(title = paste0(ages[[i]]," Ma"), shape = "", color = "Module") +    # CHANGE
     theme_void() +
     theme(legend.position = "none")
@@ -388,48 +391,6 @@ ggt_80 + ggn_80 +
   ggt_20 + ggn_20 +
   ggt_10 + ggn_10 +
   ggt_0 + ggn_0 +
-  plot_layout(design = design)
-
-
-/*# ___Plot only high pp interactions ----
-*/  
-
-#' **Plot only high probability interactions**
-#'
-
-for(i in 1:length(ages)){
-  
-  graph <- list_tgraphs[[i]] %E>% 
-    mutate(highpp = case_when(weight >= 0.9 ~ "high",
-                              weight < 0.9 ~ "low"))
-  laybip = layout_as_bipartite(graph)
-  laybip = laybip[,c(2,1)]
-  
-  ggn <- ggraph(graph, layout = laybip) +
-    geom_edge_link(aes(width = weight, color = highpp)) + 
-    geom_node_point(aes(shape = type, color = factor(module, levels = mod_levels)), size = node_size[i]) +
-    scale_shape_manual(values = c("square","circle")) +
-    scale_color_manual(values = custom_pal, na.value = "grey70", drop = F) +
-    scale_edge_width("Probability", range = c(0.1,1)) +
-    scale_edge_color_manual(values = c("grey50","grey80")) +
-    labs(title = paste0(ages[[i]]," Ma"), shape = "", color = "Module") +    # CHANGE
-    theme_void() +
-    theme(legend.position = "none")
-  
-  assign(paste0("ggn_90_",ages[[i]]), ggn)
-}      
-
-#+ fig3_90, fig.width = 18, fig.height = 18, warning = F
-# plot!
-ggt_80 + ggn_90_80 +
-  ggt_70 + ggn_90_70 +
-  ggt_60 + ggn_90_60 +
-  ggt_50 + ggn_90_50 +
-  ggt_40 + ggn_90_40 +
-  ggt_30 + ggn_90_30 +
-  ggt_20 + ggn_90_20 +
-  ggt_10 + ggn_90_10 +
-  ggt_0 + ggn_90_0 +
   plot_layout(design = design)
 
 

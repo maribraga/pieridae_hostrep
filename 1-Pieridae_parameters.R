@@ -59,7 +59,7 @@ posterior <- bind_rows(postt,postb) %>%
 /*# _Mean estimates ----
 */
 means <- group_by(posterior, tree) %>% 
-  select(-generation) %>% 
+  dplyr::select(-generation) %>% 
   summarise_all(mean)
 means
 
@@ -148,7 +148,7 @@ ggclock + ggbeta + gg02 + gg20 + plot_layout(ncol = 4, guides = 'collect')
 #' **Bayes factor**
 #' 
 #' With Bayes factors we check which model has more support, 
-#' the full model (with beta) or the simplified model where beta = 0.
+#' the full model, where beta > 0, or the simplified model where beta = 0.
 #' 
 /*# _Bayes factor ----
 */
@@ -170,5 +170,8 @@ max_bl1 = kd_beta_bl1(0)
 (BF_time <- d_prior/max_time)
 (BF_bl1 <- d_prior/max_bl1)
 
-#' Now we are ready to move on to Character history inference
+#' According to the calculated Bayes factors,
+#' both analyses support the full model, where beta > 0.
+#' 
+#' Now we are ready to move on to Character history inference.
 #'  
