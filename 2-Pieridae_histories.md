@@ -1,7 +1,7 @@
 Pieridae host repertoire - Character history
 ================
 Mariana Braga
-04 May, 2020
+05 May, 2020
 
 -----
 
@@ -398,6 +398,71 @@ ggt_80 + ggn_80 +
 
 ![](2-Pieridae_histories_files/figure-gfm/fig3-1.png)<!-- -->
 
+### Weighted networks
+
+To build weighted networks we use the posterior probabilities as weights
+for each interaction. But since many interactions have really small
+probabilities, we can set a minimum probability, below which the weight
+is set to 0.
+
+``` r
+# probability threshold
+lpt <- 10 
+# gather networks in a list
+list_wnets <- list()
+for(m in 1:length(list_m_at_ages)){
+  matrix <- list_m_at_ages[[m]]
+  for(i in 1:nrow(matrix)){
+    for(j in 1:ncol(matrix)){
+      if(matrix[i,j] < lpt/100){
+        matrix[i,j] = 0
+      }
+    }
+  }
+  matrix = matrix[ rowSums(matrix)!=0, ]
+  matrix = matrix[ ,colSums(matrix)!=0 ]
+  list_wnets[[m]] <- matrix
+}
+
+list_wnets[[1]]
+```
+
+    ##             Pseudopontia  Index_70 Index_129
+    ## Olacaceae      0.1666204 0.3282422 0.1199667
+    ## Santalaceae    0.0000000 0.1435712 0.0000000
+    ## Capparaceae    0.8181061 0.7117467 0.8767009
+    ## Fabaceae       0.8758678 0.9697306 0.9539017
+
+#### Calculate weighted modularity
+
+``` r
+all_wmod <- tibble()
+
+for(i in 1:length(list_wnets)){
+  set.seed(5)
+  wmod <- computeModules(list_wnets[[i]])
+  assign(paste0("wmod_",ages[i]),wmod)
+  wmod_list <- listModuleInformation(wmod)[[2]]
+  nwmod <- length(wmod_list)
+  
+  for(m in 1:nwmod){
+    members <- unlist(wmod_list[[m]])
+    mtbl <- tibble(name = members, 
+                   age = rep(ages[i], length(members)),
+                   original_module = rep(m, length(members)))
+                   
+    all_wmod <- bind_rows(all_wmod, mtbl)
+  }
+}
+```
+
+``` r
+# check modules for same network as before
+plotModuleWeb(wmod_50, labsize = 0.4)
+```
+
+![](2-Pieridae_histories_files/figure-gfm/one_wmodule-1.png)<!-- -->
+
 ### States at internal nodes
 
 Besides looking at host repertoires at a given time in the past, we can
@@ -464,16 +529,16 @@ gg_high_nodes <- filter(el, p > 0.9) %>%
 gg_all_nodes + gg_high_nodes
 ```
 
-![](2-Pieridae_histories_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
+![](2-Pieridae_histories_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
 
 Other plots to combine with extant butterfly tree and ancestral states
 at nodes
 
 ``` r
 edge_list <- get.data.frame(list_tgraphs[[9]], what = "edges") %>%
-  inner_join(all_mod_edited %>% filter(age == 0) %>% select(name, module), by = c("from" = "name")) %>%
-  inner_join(all_mod_edited %>% filter(age == 0) %>% select(name, module), by = c("to" = "name")) %>%
-  mutate(Module = ifelse(module.x == module.y, module.x, NA))
+inner_join(all_mod_edited %>% filter(age == 0) %>% select(name, module), by = c("from" = "name")) %>%
+inner_join(all_mod_edited %>% filter(age == 0) %>% select(name, module), by = c("to" = "name")) %>%
+mutate(Module = ifelse(module.x == module.y, module.x, NA))
 
 phylob <- tree$tip.label
 phylop <- host_tree$tip.label
@@ -502,7 +567,7 @@ ggplot(plot_net, aes(x = from, y = to, fill = factor(Module, levels = mod_levels
     axis.title.y = element_blank())
 ```
 
-![](2-Pieridae_histories_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
+![](2-Pieridae_histories_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->
 
   - **Host tree with modules**
 
@@ -531,4 +596,4 @@ ggtree_but <- ggtree(tree) + geom_tiplab(size = 2) + geom_nodelab(size = 2) +
 ggtree_host + ggtree_but + plot_layout(widths = c(2,3))
 ```
 
-![](2-Pieridae_histories_files/figure-gfm/unnamed-chunk-27-1.png)<!-- -->
+![](2-Pieridae_histories_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->

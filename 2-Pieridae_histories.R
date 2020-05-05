@@ -393,7 +393,111 @@ ggt_80 + ggn_80 +
   ggt_0 + ggn_0 +
   plot_layout(design = design)
 
+  
+/*# _Weighted networks with a low probability threshold ----
+*/
+#' ### Weighted networks
+#' 
+#' To build weighted networks we use the posterior probabilities as weights for each interaction.
+#' But since many interactions have really small probabilities, we can set a minimum probability,
+#' below which the weight is set to 0.
+#' 
 
+# probability threshold
+lpt <- 10 
+# gather networks in a list
+list_wnets <- list()
+for(m in 1:length(list_m_at_ages)){
+  matrix <- list_m_at_ages[[m]]
+  for(i in 1:nrow(matrix)){
+    for(j in 1:ncol(matrix)){
+      if(matrix[i,j] < lpt/100){
+        matrix[i,j] = 0
+      }
+    }
+  }
+  matrix = matrix[ rowSums(matrix)!=0, ]
+  matrix = matrix[ ,colSums(matrix)!=0 ]
+  list_wnets[[m]] <- matrix
+}
+
+list_wnets[[1]]
+
+
+/*# __Calculate weighted modularity with bipartite (STOCHASTIC STEP!)----
+*/
+#' #### Calculate weighted modularity
+
+all_wmod <- tibble()
+
+for(i in 1:length(list_wnets)){
+  set.seed(5)
+  wmod <- computeModules(list_wnets[[i]])
+  assign(paste0("wmod_",ages[i]),wmod)
+  wmod_list <- listModuleInformation(wmod)[[2]]
+  nwmod <- length(wmod_list)
+  
+  for(m in 1:nwmod){
+    members <- unlist(wmod_list[[m]])
+    mtbl <- tibble(name = members, 
+                   age = rep(ages[i], length(members)),
+                   original_module = rep(m, length(members)))
+                   
+    all_wmod <- bind_rows(all_wmod, mtbl)
+  }
+}
+
+#+ one_wmodule, fig.width = 6.7, fig.height = 5
+# check modules for same network as before
+plotModuleWeb(wmod_50, labsize = 0.4)
+
+
+
+
+
+/* 
+  
+#write.csv(all_wmod, paste0(path_bip,"quant_modules_bipartite_seed5.csv"), row.names = F)
+  
+
+# __Make tidygraphs with bipartite modules ----
+
+list_tgraphs <- list()
+for(n in 1:length(list_wnets)){
+  
+  # get weighted graph
+  wnet <- list_wnets[[n]]
+  # get names
+  rnames <- rownames(wnet)
+  cnames <- colnames(wnet)
+  
+  wgraph <- as_tbl_graph(wnet, directed = F) %>% 
+    left_join(filter(all_wmod, age == ages[n]), by = "name") %>% 
+    select(type, name, original_module)
+  
+  #assign(paste0("wgraph_",ages[n]), wgraph)
+  
+  list_tgraphs[[n]] <- wgraph
+}
+
+
+# __Match modules across ages ----
+
+# if fixed on excel
+
+all_wmod_edited <- read.csv(paste0(path_bip,"quant_modules_bipartite_seed5.csv"), header = T, stringsAsFactors = F)
+for(n in 1:length(ages)){
+  list_tgraphs[[n]] <- list_tgraphs[[n]] %>% 
+    activate(what = "nodes") %>% 
+    left_join(filter(all_wmod_edited, age == ages[n]) %>% select(name, module), by = "name")
+}
+
+
+
+*/
+  
+  
+  
 /*## States at nodes ----
 */
 #' ### States at internal nodes
@@ -464,11 +568,11 @@ gg_all_nodes + gg_high_nodes
   
 #' Other plots to combine with extant butterfly tree and ancestral states at nodes
 #'
-  
+
 edge_list <- get.data.frame(list_tgraphs[[9]], what = "edges") %>%
-  inner_join(all_mod_edited %>% filter(age == 0) %>% select(name, module), by = c("from" = "name")) %>%
-  inner_join(all_mod_edited %>% filter(age == 0) %>% select(name, module), by = c("to" = "name")) %>%
-  mutate(Module = ifelse(module.x == module.y, module.x, NA))
+inner_join(all_mod_edited %>% filter(age == 0) %>% select(name, module), by = c("from" = "name")) %>%
+inner_join(all_mod_edited %>% filter(age == 0) %>% select(name, module), by = c("to" = "name")) %>%
+mutate(Module = ifelse(module.x == module.y, module.x, NA))
 
 phylob <- tree$tip.label
 phylop <- host_tree$tip.label
@@ -507,134 +611,3 @@ ggtree_but <- ggtree(tree) + geom_tiplab(size = 2) + geom_nodelab(size = 2) +
 
 #+ fig.width = 7, fig.height = 7
 ggtree_host + ggtree_but + plot_layout(widths = c(2,3))
-
-/*  
-  
-# _Weighted networks with a low probability threshold ----
-
-#' **Weighted networks**
-#' 
-#' To build weighted networks we use the posterior probabilities as weights for each interaction.
-#' But since many interactions have really small probabilities, we can set a minimum probability,
-#' below which the weight is set to 0.
-#' 
-
-# probability threshold
-lpt <- 10 
-# gather networks in a list
-list_wnets <- list()
-for(m in 1:length(list_m_at_ages)){
-  matrix <- list_m_at_ages[[m]]
-  for(i in 1:nrow(matrix)){
-    for(j in 1:ncol(matrix)){
-      if(matrix[i,j] < lpt/100){
-        matrix[i,j] = 0
-      }
-    }
-  }
-  matrix = matrix[ rowSums(matrix)!=0, ]
-  matrix = matrix[ ,colSums(matrix)!=0 ]
-  list_wnets[[m]] <- matrix
-  #assign(paste0("net_",pt,"p_",ages[m]), matrix)
-}
-
-list_wnets[[1]]
-
-
-# __Calculate weighted modularity with bipartite (STOCHASTIC STEP!)----
-
-all_wmod <- tibble()
-#set.seed(5) # set.seed(5) produces 10 modules
-
-for(i in 1:length(list_wnets)){
-  set.seed(5)
-  wmod <- computeModules(list_wnets[[i]])
-  assign(paste0("wmod_",ages[i]),wmod)
-  wmod_list <- listModuleInformation(wmod)[[2]]
-  nwmod <- length(wmod_list)
-  
-  for(m in 1:nwmod){
-    members <- unlist(wmod_list[[m]])
-    mtbl <- tibble(name = members, 
-                   age = rep(ages[i], length(members)),
-                   original_module = rep(m, length(members)))
-                   
-    all_wmod <- bind_rows(all_wmod, mtbl)
-  }
-}
-
-# check modules for last wnet
-plotModuleWeb(wmod, labsize = 0.4)
-
-#path_bip <- paste0("./net_structure/bipartite/")
-#write.csv(all_wmod, paste0(path_bip,"quant_modules_bipartite_seed5.csv"), row.names = F)
-
-
-# __Make tidygraphs with bipartite modules ----
-
-list_tgraphs <- list()
-for(n in 1:length(list_wnets)){
-  
-  # get weighted graph
-  wnet <- list_wnets[[n]]
-  # get names
-  rnames <- rownames(wnet)
-  cnames <- colnames(wnet)
-  
-  wgraph <- as_tbl_graph(wnet, directed = F) %>% 
-    left_join(filter(all_wmod, age == ages[n]), by = "name") %>% 
-    select(type, name, original_module)
-  
-  #assign(paste0("wgraph_",ages[n]), wgraph)
-  
-  list_tgraphs[[n]] <- wgraph
-}
-
-
-# __Match modules across ages ----
-
-# if fixed on excel
-
-all_wmod_edited <- read.csv(paste0(path_bip,"quant_modules_bipartite_seed5.csv"), header = T, stringsAsFactors = F)
-for(n in 1:length(ages)){
-  list_tgraphs[[n]] <- list_tgraphs[[n]] %>% 
-    activate(what = "nodes") %>% 
-    left_join(filter(all_wmod_edited, age == ages[n]) %>% select(name, module), by = "name")
-}
-
-# # try to fix it here
-# 
-# (degree_mod <- list_tgraphs[[9]] %>% 
-#    activate(what = "nodes") %>% 
-#    mutate(degree = centrality_degree()) %>% 
-#    as_tibble() %>%
-#    group_by(type, original_module) %>% 
-#    top_n(1, degree) %>% 
-#    group_by(original_module) %>% 
-#    top_n(1, degree) %>% 
-#    arrange(original_module))
-# 
-# list_modules_order <- list(
-#   c('M1','M2'),
-#   c('M1','M2'),
-#   c('M9','M2','M3','M1'), # M9 = Pseudopontia
-#   c('M2','M9','M3','M1'),
-#   c('M4','M9','M2','M1','M3'),
-#   c('M2','M7','M3','M4','M1','M9'), # M7 = Nepheronia
-#   c('M5','M7','M4','M3','M2','M1','M6'), # Nepheronia is in M2 and Pseudopontia is in M4; M5 = Asteraceae, M6 = Rhamnaceae, M7 = Kricogonia
-#   c('M2','M4','M6','M1','M5','M8','M7','M3') # new: M8 = Aporia
-# )
-# 
-# 
-# all_wmod$module <- NA
-# 
-# for(i in 1:nrow(all_wmod)){
-#   a <- which(ages == all_wmod$age[i])
-#   m <- all_wmod$original_module[i]
-#   all_wmod$module[i] <- list_modules_order[[a]][m]
-# }
-# 
-# View(all_wmod)
-
-# the end ----
-*/
