@@ -17,7 +17,7 @@
 library(picante)
 library(tidyverse)
 library(patchwork)
-library(wesanderson)
+library(viridis)
 library(bipartite)
 library(ggraph)
 library(tidygraph)
@@ -25,8 +25,6 @@ library(tidygraph)
 
 load("./inference/char_hist.RData")
 
-/*# NETWORK STRUCTURE ----
-*/
 
 /*# Sizes over time ----
 */
@@ -40,63 +38,78 @@ load("./inference/char_hist.RData")
 #' and *connectance* = the proportion of possible interactions that are realized.
 
 net_size <- tibble()
+net_size90 <- tibble()
 
 for(i in 1:length(ages)){
   ns <- list_tgraphs[[i]] %>% activate(what = "nodes") %>% as_tibble()
   es <- list_tgraphs[[i]] %>% activate(what = "edges") %>% as_tibble()
+  ns90 <- list_tgraphs[[i]] %>% activate(what = "nodes") %>% as_tibble() %>% filter(!is.na(module))
+  es90 <- list_tgraphs[[i]] %>% activate(what = "edges") %>% as_tibble() %>% filter(weight >= 0.9)
+  
   n.high <- length(which(ns$type == TRUE))
   n.low <- length(which(ns$type == FALSE))
-  n.mod <- length(unique(ns$module))
+  #n.mod <- length(unique(ns$module))
   n.int <- nrow(es)
+  n90.high <- length(which(ns90$type == TRUE))
+  n90.low <- length(which(ns90$type == FALSE))
+  #n90.mod <- 
+  n90.int <- nrow(es90)  
+  
   net_size <- bind_rows(net_size, tibble(age=ages[i], 
                                          n.high=n.high, 
-                                         n.low=n.low, 
-                                         n.mod=n.mod, 
+                                         n.low=n.low,
                                          n.int=n.int,
-                                         i.high=n.int/n.high,
-                                         i.low=n.int/n.low,
-                                         p.low=n.low/n.high,
-                                         connectance=n.int/(n.high*n.low)))
+                                         i.high=n.int/n.high))
+  
+  net_size90 <- bind_rows(net_size90, tibble(age=ages[i],
+                                           n.high=n90.high, 
+                                           n.low=n90.low, 
+                                           n.int=n90.int,
+                                           i.high=n90.int/n90.high))
 }
 
-net_size <- pivot_longer(net_size, 2:9, names_to = "index", values_to = "value")
-net_size_n <- filter(net_size, index %in% c("n.high","n.low","n.mod","n.int"))
-net_size_r <- filter(net_size, index %in% c("i.high","i.low","p.low","connectance"))
+net_size <- pivot_longer(net_size, 2:5, names_to = "index", values_to = "value") %>% 
+  mutate(prob = "all")
+net_size90 <- pivot_longer(net_size90, 2:5, names_to = "index", values_to = "value") %>% 
+  mutate(prob = "high")
+net_size <- bind_rows(net_size,net_size90)
 
-gg_size_n <- ggplot(net_size_n, aes(age,value, col = index)) +
-  geom_line() +
+# 2-color palette
+pal_2c <- viridis_pal()(3)[2:1]
+
+ggplot(net_size, aes(age,value,col = prob)) +
+  geom_line(aes(group=prob)) +
   geom_point() +
+  scale_color_manual(values = pal_2c) +
+  facet_grid(factor(index, levels = c("n.int","n.high","n.low","i.high"))~., scales = "free") +
   scale_x_reverse() +
   theme_bw()
 
-gg_size_r <- ggplot(net_size_r, aes(age,value, col = index)) +
-  geom_line() +
-  geom_point() +
-  scale_x_reverse() +
-  theme_bw()
-
-#+ net_size, fig.width = 8, fig.height = 3
-gg_size_n + gg_size_r 
-
-
-#' ## Network structure
+/*# BINARY networks ---- 
+*/
+  
+#' ## Network structure - Binary networks
 #' 
-#' ### Null models
-#' 
+/* # fix this later
 #' We are gonna generate networks using two null models.
 #' `r00` only keeps the size and number of interactions of the original network,
 #' while `r2dtable` also keeps the marginal sums, i.e. the number of interactions 
 #' that each butterfly/plant has.
-
+*/
 /*# Null models ----
 */
 
-# gotta skip network at 80 Ma because it only has one host
+#' ### Null models
+#' 
+
+# number of null networks to be generated
+nit <- 1000
+
+#+ eval = FALSE  
 Nulls_r00 <- list()
 Nulls_r2d <- list()
 
-nit <- 1000
-
+# gotta skip network at 80 Ma because it only has one host
 for(i in 2:length(ages)){
   null_r00 <- vegan::nullmodel(net_list[[i]], "r00") 
   sim_r00 <- simulate(null_r00, nsim=nit, seed = 1)
@@ -104,11 +117,9 @@ for(i in 2:length(ages)){
   
   null_r2d <- vegan::nullmodel(net_list[[i]], "r2dtable") 
   sim_r2d <- simulate(null_r2d, nsim=nit, seed = 1)
-  #null_r2d <- bipartite::nullmodel(count, N=nit, method=1)
   Nulls_r2d[[i]] <- sim_r2d
   
 }  
-
 
   
 /*# _Modularity ----
@@ -143,8 +154,10 @@ Qnull <- Qnull %>% pivot_longer(3:4, names_to = "model", values_to = "Q")
 saveRDS(Qnull, "./networks/Qnull.rds")
 */
 
-#+ 
+#+
+# Modularity of binary null networks  
 Qnull <- readRDS("./networks/Qnull.rds")
+
     
 # observed
 Qobs <- tibble()
@@ -157,6 +170,7 @@ for(i in 3:length(ages)){
 
 # _Nestedness ----
 
+#+ eval = FALSE
 # do not calculate for networks at 80 and 70 Ma. They are too small. 
 Nnull <- tibble()
 
@@ -179,6 +193,7 @@ saveRDS(Nnull, "./networks/Nnull.rds")
 */
   
 #+ 
+# Nestedness of binary null networks
 Nnull <- readRDS("./networks/Nnull.rds")
 
 
@@ -191,49 +206,10 @@ for(i in 3:length(ages)){
 }
 
 
-# _Density plots ----
-
-# modularity
-for(g in ages[3:9]){
+/*# _Z-scores ----
+*/
+#' ### Z-scores
   
-  gg <- ggplot(filter(Qnull, age == g)) +
-    geom_density(aes(Q, group = model, color = model)) +
-    scale_color_grey() +
-    geom_vline(xintercept = filter(Qobs, age == g)$Q, col = "blue") +
-    labs(title = paste0(g," Ma"), y = NULL) +
-    theme_bw() + 
-    theme(axis.ticks.y = element_line(linetype = "blank"), 
-          axis.text.y = element_blank())
-  
-  assign(paste0("mod_plot_",g), gg)
-}
-
-# nestedness
-for(g in ages[3:9]){
-  gg <- ggplot(filter(Nnull, age == g)) +
-    geom_density(aes(N, group = model, color = model)) +
-    scale_color_grey() +
-    geom_vline(xintercept = filter(Nobs, age == g)$nodf, col = "blue") +
-    labs(title = paste0(g," Ma"), y = NULL) +
-    theme_bw() + 
-    theme(axis.ticks.y = element_line(linetype = "blank"), 
-          axis.text.y = element_blank())
-  
-  assign(paste0("nodf_plot_",g), gg)
-}
-
-#+ z_dens, fig.width = 11, fig.height = 3
-(nodf_plot_60 / mod_plot_60 |
-  nodf_plot_50 / mod_plot_50 |
-  nodf_plot_40 / mod_plot_40 |
-  nodf_plot_30 / mod_plot_30 |
-  nodf_plot_20 / mod_plot_20 |
-  nodf_plot_10 / mod_plot_10 |
-  nodf_plot_0 / mod_plot_0) +
-  plot_layout(guides = 'collect')
-
-# _Z-scores ----
-
 Qzscore <- Qnull %>% 
   group_by(age, model) %>% 
   summarize(mean = mean(Q),
@@ -258,36 +234,197 @@ Nzscore <- Nnull %>%
               summarise(p = sum(N > Nobs)/nit))
 
 
-# colors from parameter estimates plot
-palwes <- wes_palette("Zissou1", 4, type = "continuous")
-pal <- c(palwes[4],palwes[1])
+/*# WEIGHTED networks ---- 
+*/
+#' ## Network structure - Weighted networks
+#' 
 
-plot_qz <- ggplot(Qzscore) +
-  geom_line(aes(age, z, group = model, col = model)) +
-  geom_point(aes(age, z, group = model, col = model),
-             data = filter(Qzscore, p <= 0.05),
+/*# Null models ----
+*/
+#' ### Null models
+#'
+
+Nulls_rb <- list()
+#Nulls_colsums <- list()
+#Nulls_allsums <- list()
+
+nit <- 1000
+
+for(i in 1:(length(ages)-1)){
+  
+  count <- round(list_wnets[[i]]*100)
+  
+  null_rb <- vegan::nullmodel(count, "r00_both") 
+  sim_rb <- simulate(null_rb, nsim=nit, seed = 1)
+  Nulls_rb[[i]] <- sim_rb
+  
+  # null_c0 <- vegan::nullmodel(count, "c0_both") 
+  # sim_c0 <- simulate(null_c0, nsim=nit, seed = 1)
+  # Nulls_colsums[[i]] <- sim_c0
+  
+  # null_swap <- vegan::nullmodel(count, "quasiswap_count") 
+  # sim_swap <- simulate(null_swap, nsim=nit, seed = 1)
+  # Nulls_allsums[[i]] <- sim_swap
+  
+} 
+
+  
+/*# _Modularity ----
+*/
+#' ### Modularity
+#' 
+
+#+ eval = FALSE
+Qwnull <- tibble()
+
+for(i in 1:(length(ages)-1)){
+  
+  simw_random <- Nulls_rb[[i]]
+
+  for(j in 1:nit){
+    Qwrandom <- computeModules(simw_random[,,j])@likelihood
+    Qwnull <- bind_rows(Qwnull, tibble(age = ages[i], sim=j, random=Qwrandom))
+  }
+}
+
+Qwnull <- Qwnull %>% pivot_longer(3, names_to = "model", values_to = "Q")
+
+/*
+saveRDS(Qwnull, "./networks/Qwnull.rds")
+*/
+  
+#+
+# Modularity of weighted null networks 
+Qwnull <- readRDS("./networks/Qwnull.rds")
+
+# observed 
+Qobs <- tibble()
+
+for(i in 1:length(ages)){
+  q <- get(paste0("wmod_",ages[i]))
+  Qobs<- bind_rows(Qobs, tibble(age = ages[i], Q = q@likelihood))
+}
+
+/*# _Nestedness ----
+*/
+#' ### Nestedness
+#'   
+
+#+ eval = FALSE
+Nwnull <- tibble()
+
+for(i in 1:(length(ages)-1)){
+  
+  sim_rb <- Nulls_rb[[i]]
+
+  for(j in 1:nit){
+    Nrb <- networklevel(sim_rb[,,j],index="weighted NODF")
+
+    Nwnull <- bind_rows(Nwnull, tibble(age = ages[i], sim=j,random=Nrb))
+  }
+}
+
+Nwnull <- Nwnull %>% pivot_longer(3, names_to = "model", values_to = "N")
+
+/*
+saveRDS(Nwnull, "./networks/Nwnull.rds")
+*/
+  
+#+ 
+# Nestedness of weighted null networks
+Nwnull <- readRDS("./networks/Nwnull.rds")
+
+
+# observed
+Nwobs <- tibble()
+
+for(i in 1:(length(ages)-1)){
+  wnodf <- networklevel(net_list[[i]],index="weighted NODF")
+  Nwobs<- bind_rows(Nwobs, tibble(age = ages[i], nodf = wnodf))
+}
+
+    
+/*# _Z-scores ----
+*/
+#' ### Z-scores
+#' 
+    
+Qwzscore <- Qwnull %>%
+  group_by(age, model) %>%
+  summarize(mean = mean(Q),
+            sd = sd(Q)) %>%
+  left_join(Qobs) %>%
+  mutate(z = (Q - mean)/sd) %>%
+  left_join(Qwnull %>%
+              left_join(rename(Qobs, Qobs = Q)) %>%
+              group_by(age, model) %>%
+              summarise(p = sum(Q > Qobs)/nit))
+
+Nwzscore <- Nwnull %>% 
+  group_by(age, model) %>% 
+  summarize(mean = mean(N),
+            sd = sd(N)) %>% 
+  left_join(Nobs) %>% 
+  mutate(z = (nodf - mean)/sd) %>% 
+  left_join(Nwnull %>% 
+              left_join(rename(Nobs, Nobs = nodf)) %>% 
+              group_by(age, model) %>% 
+              summarise(p = sum(N > Nobs)/nit))
+
+Qz <- bind_rows(filter(Qzscore, model == 'random') %>% mutate(network = 'high-binary'), 
+                filter(Qwzscore, model == 'random')%>% mutate(network = 'all-weighted'))
+
+Nz <- bind_rows(filter(Nzscore, model == 'random') %>% mutate(network = 'high-binary'), 
+                filter(Nwzscore, model == 'random')%>% mutate(network = 'all-weighted'))
+
+plot_qz <- ggplot(Qz) +
+  geom_line(aes(age, z, group = network, col = network)) +
+  geom_point(aes(age, z, group = network, col = network),
+             data = filter(Qz, p <= 0.05),
              size = 2, alpha = 0.7) +
-  scale_color_manual(values = pal) +
+  scale_color_manual(values = pal_2c) +
   scale_x_reverse() +
-  labs(title = "Modularity, Q", y = "Z-score", x = "Millions of years ago, Ma", col = "Null model") +
+  labs(title = "Modularity, Q", y = "Z-score", x = "Millions of years ago, Ma") +
   theme_bw()
 
-plot_nz <- ggplot(Nzscore) +
-  geom_line(aes(age, z, group = model, col = model)) +
-  geom_point(aes(age, z, group = model, col = model),
-             data = filter(Nzscore, p <= 0.05),
+plot_nz <- ggplot(Nz) +
+  geom_line(aes(age, z, group = network, col = network)) +
+  geom_point(aes(age, z, group = network, col = network),
+             data = filter(Nz, p <= 0.05),
              size = 2, alpha = 0.7) +
-  scale_color_manual(values = pal) +
+  scale_color_manual(values = pal_2c) +
   scale_x_reverse() +
-  labs(title = "Nestedness, N", y = "Z-score", x = "Millions of years ago, Ma", col = "Null model") +
+  labs(title = "Nestedness, N", y = "Z-score", x = "Millions of years ago, Ma") +
   theme_bw()
 
-#+ zscore, fig.width = 6.6, fig.height = 5.3, warning = FALSE
+#+ zscore, fig.width = 6, fig.height = 4.5, warning = FALSE
 plot_qz / plot_nz + plot_layout(guides = 'collect')
 
 
-
-
+/*
+# plot_qz <- ggplot(Qzscore) +
+#   geom_line(aes(age, z, group = model, col = model)) +
+#   geom_point(aes(age, z, group = model, col = model),
+#              data = filter(Qzscore, p <= 0.05),
+#              size = 2, alpha = 0.7) +
+#   scale_color_manual(values = pal) +
+#   scale_x_reverse() +
+#   labs(title = "Modularity, Q", y = "Z-score", x = "Millions of years ago, Ma", col = "Null model") +
+#   theme_bw()
+# 
+# plot_nz <- ggplot(Nzscore) +
+#   geom_line(aes(age, z, group = model, col = model)) +
+#   geom_point(aes(age, z, group = model, col = model),
+#              data = filter(Nzscore, p <= 0.05),
+#              size = 2, alpha = 0.7) +
+#   scale_color_manual(values = pal) +
+#   scale_x_reverse() +
+#   labs(title = "Nestedness, N", y = "Z-score", x = "Millions of years ago, Ma", col = "Null model") +
+#   theme_bw()
+# 
+# #+ zscore, fig.width = 6.6, fig.height = 5.3, warning = FALSE
+# plot_qz / plot_nz + plot_layout(guides = 'collect')
+*/
 
 # Phylogenetic diversity ----
 
@@ -397,10 +534,58 @@ gnb / gnp + plot_layout(guides = 'collect')
 
 
 
+
+
+
 /*
-  # Checking null networks
   
-  net0 <- Nulls_r00[[7]][,,1]
+# _Density plots ----
+
+# modularity
+for(g in ages[3:9]){
+  
+  gg <- ggplot(filter(Qnull, age == g)) +
+    geom_density(aes(Q, group = model, color = model)) +
+    scale_color_grey() +
+    geom_vline(xintercept = filter(Qobs, age == g)$Q, col = "blue") +
+    labs(title = paste0(g," Ma"), y = NULL) +
+    theme_bw() + 
+    theme(axis.ticks.y = element_line(linetype = "blank"), 
+          axis.text.y = element_blank())
+  
+  assign(paste0("mod_plot_",g), gg)
+}
+
+# nestedness
+for(g in ages[3:9]){
+  gg <- ggplot(filter(Nnull, age == g)) +
+    geom_density(aes(N, group = model, color = model)) +
+    scale_color_grey() +
+    geom_vline(xintercept = filter(Nobs, age == g)$nodf, col = "blue") +
+    labs(title = paste0(g," Ma"), y = NULL) +
+    theme_bw() + 
+    theme(axis.ticks.y = element_line(linetype = "blank"), 
+          axis.text.y = element_blank())
+  
+  assign(paste0("nodf_plot_",g), gg)
+}
+
+#+ z_dens, fig.width = 11, fig.height = 3
+(nodf_plot_60 / mod_plot_60 |
+    nodf_plot_50 / mod_plot_50 |
+    nodf_plot_40 / mod_plot_40 |
+    nodf_plot_30 / mod_plot_30 |
+    nodf_plot_20 / mod_plot_20 |
+    nodf_plot_10 / mod_plot_10 |
+    nodf_plot_0 / mod_plot_0) +
+  plot_layout(guides = 'collect')
+
+
+
+
+# Checking null networks
+  
+net0 <- Nulls_r00[[7]][,,1]
 net1 <- Nulls_c0[[7]][,,1]
 net2 <- Nulls_r2d[[7]][[1]]
 net <- list_wnets[[7]]

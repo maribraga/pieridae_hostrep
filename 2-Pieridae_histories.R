@@ -78,7 +78,10 @@ it_seq <- seq(20000,200000, 50)
 
 # Time-calibrated tree
 history_dat_time <- filter(history_dat_time, iteration %in% it_seq) %>% 
-  mutate(node_index = node_index + 1)
+  mutate(node_index = node_index + 1,
+         parent_index = parent_index + 1,
+         child1_index = child1_index + 1,
+         child2_index = child2_index + 1)
 
 write.table(history_dat_time,"./inference/history.time.txt", sep="\t", quote = F, row.names = F)
 
@@ -86,7 +89,10 @@ write.table(history_dat_time,"./inference/history.time.txt", sep="\t", quote = F
 history_dat_bl1 = read.table("./inference/out.3.bl1.pieridae.2s.history.txt", sep="\t", header=T, colClasses = colclasses)
 
 history_dat_bl1 <- filter(history_dat_bl1, iteration %in% it_seq) %>% 
-  mutate(node_index = node_index + 1)
+  mutate(node_index = node_index + 1,
+         parent_index = parent_index + 1,
+         child1_index = child1_index + 1,
+         child2_index = child2_index + 1)
 
 write.table(history_dat_bl1,"./inference/history.bl1.txt", sep="\t", quote = F, row.names = F)
 
@@ -147,7 +153,7 @@ ages = c(80,70,60,50,40,30,20,10,0)
 list_m_at_ages = list()
 for (i in 1:(length(ages)-1)) {
   age = ages[i]
-  list_m_at_ages[[i]] = t(make_matrix_at_age( history_dat_time, age, s_hit=c(2) ))
+  list_m_at_ages[[i]] = t(make_matrix_at_age( history_dat_bl1, age, s_hit=c(2) ))
 }
 
 #' I have done this before and saved the list as a .rds file.
@@ -400,7 +406,8 @@ ggt_80 + ggn_80 +
 #' 
 #' To build weighted networks we use the posterior probabilities as weights for each interaction.
 #' But since many interactions have really small probabilities, we can set a minimum probability,
-#' below which the weight is set to 0.
+#' below which the weight is set to 0. Here I'll use the same minimum as I used before for
+#' constructing the graphs. These are independent steps, but it makes sense to use the same values.
 #' 
 
 # probability threshold
@@ -451,52 +458,9 @@ for(i in 1:length(list_wnets)){
 # check modules for same network as before
 plotModuleWeb(wmod_50, labsize = 0.4)
 
-
-
-
-
-/* 
-  
-#write.csv(all_wmod, paste0(path_bip,"quant_modules_bipartite_seed5.csv"), row.names = F)
-  
-
-# __Make tidygraphs with bipartite modules ----
-
-list_tgraphs <- list()
-for(n in 1:length(list_wnets)){
-  
-  # get weighted graph
-  wnet <- list_wnets[[n]]
-  # get names
-  rnames <- rownames(wnet)
-  cnames <- colnames(wnet)
-  
-  wgraph <- as_tbl_graph(wnet, directed = F) %>% 
-    left_join(filter(all_wmod, age == ages[n]), by = "name") %>% 
-    select(type, name, original_module)
-  
-  #assign(paste0("wgraph_",ages[n]), wgraph)
-  
-  list_tgraphs[[n]] <- wgraph
-}
-
-
-# __Match modules across ages ----
-
-# if fixed on excel
-
-all_wmod_edited <- read.csv(paste0(path_bip,"quant_modules_bipartite_seed5.csv"), header = T, stringsAsFactors = F)
-for(n in 1:length(ages)){
-  list_tgraphs[[n]] <- list_tgraphs[[n]] %>% 
-    activate(what = "nodes") %>% 
-    left_join(filter(all_wmod_edited, age == ages[n]) %>% select(name, module), by = "name")
-}
-
-
-
+/*
+#write.csv(all_wmod, "./networks/all_wmod_bl1.csv", row.names = F)
 */
-  
-  
   
 /*## States at nodes ----
 */
