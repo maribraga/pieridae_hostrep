@@ -1,7 +1,7 @@
 Pieridae host repertoire - network evolution
 ================
 Mariana Braga
-06 May, 2020
+07 May, 2020
 
 -----
 
@@ -73,6 +73,35 @@ ggplot(net_size, aes(age,value,col = prob)) +
 ```
 
 ![](3-Pieridae_networks_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
+
+### Effective partners
+
+``` r
+net_ep <- tibble()
+
+for(i in 1:length(ages)){
+  
+  net <- net_list[[i]]
+  wnet <- list_wnets[[i]]
+  
+  m_ep <- mean(specieslevel(net, index = "effective partners", level = "higher")$effective.partners)
+  mw_ep <- mean(specieslevel(wnet, index = "effective partners", level = "higher")$effective.partners)
+  
+  net_ep <- bind_rows(net_ep, tibble(age=ages[i], network = c('high-binary','all-weighted'), EP = c(m_ep, mw_ep)))
+  
+}
+```
+
+``` r
+ggplot(net_ep, aes(age,EP,col = network)) +
+  geom_line(aes(group=network)) +
+  geom_point() +
+  scale_color_manual(values = pal_2c) +
+  scale_x_reverse() +
+  theme_bw()
+```
+
+![](3-Pieridae_networks_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
 
 ## Network structure - Binary networks
 
@@ -268,14 +297,6 @@ Qwnull <- Qwnull %>% pivot_longer(3, names_to = "model", values_to = "Q")
 ``` r
 # Modularity of weighted null networks 
 Qwnull <- readRDS("./networks/Qwnull.rds")
-
-# observed 
-Qobs <- tibble()
-
-for(i in 1:length(ages)){
-  q <- get(paste0("wmod_",ages[i]))
-  Qobs<- bind_rows(Qobs, tibble(age = ages[i], Q = q@likelihood))
-}
 ```
 
 ### Nestedness
@@ -300,20 +321,7 @@ Nwnull <- Nwnull %>% pivot_longer(3, names_to = "model", values_to = "N")
 ``` r
 # Nestedness of weighted null networks
 Nwnull <- readRDS("./networks/Nwnull.rds")
-
-
-# observed
-Nwobs <- tibble()
-
-for(i in 1:(length(ages)-1)){
-  wnodf <- networklevel(net_list[[i]],index="weighted NODF")
-  Nwobs<- bind_rows(Nwobs, tibble(age = ages[i], nodf = wnodf))
-}
 ```
-
-    ## Warning in networklevel(net_list[[i]], index = "weighted NODF"): Web is
-    ## really too small to calculate any reasonable index. You will get the values
-    ## nonetheless, but I wouldn't put any faith in them!
 
 ### Z-scores
 
