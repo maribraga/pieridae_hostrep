@@ -459,9 +459,30 @@ for(i in 1:length(list_wnets)){
 # check modules for same network as before
 plotModuleWeb(wmod_50, labsize = 0.4)
 
-/*
-#write.csv(all_wmod, "./networks/all_wmod_bl1.csv", row.names = F)
+
+/*# __Match modules across ages ----
 */
+  
+#' **Match modules across ages**
+#'        
+#' Again, I modified `all_wmod` outside R to match the modules across ages.
+#' Then I read it in as `all_mod_edited`.
+  
+#write.csv(all_wmod, "./networks/all_wmod_bl1.csv", row.names = F)  
+all_wmod_edited <- read.csv("./networks/all_wmod_bl1.csv", header = T, stringsAsFactors = F)
+
+/*# ___Compare binary and weighted modules ----
+*/
+
+#' #### Compare binary and weighted modules
+#' 
+
+both_mods <- full_join(rename(all_mod_edited, bmodule=module) %>% select(-original_module),
+                       rename(all_wmod_edited,wmodule=module) %>% select(-original_module))
+
+(diff <- filter(both_mods, is.na(bmodule)))
+(conflict <- filter(both_mods, bmodule!=wmodule)) # NAs are dropped by filter  
+
   
 /*## States at nodes ----
 */
