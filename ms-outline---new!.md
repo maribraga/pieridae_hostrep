@@ -78,3 +78,11 @@ interactions)
   - Suggested approach: treat posterior probabilities as a measure of
     strength of interaction *in coevolutionary terms / strenght of
     historical interaction / … *
+
+
+#### Figure list
+- Fig 1. Posterior parameter estimates (possible Supplemental Figure??)
+- Fig 2. Ancestral host repertoire estimates w/ modules  
+- Fig 3. Modules through time **w/ joint-posterior confidence metrics**
+- Fig 4. Null Hypothesis Testing through time for nestedness/modularity
+- Fig 5. Module/Network size through time
