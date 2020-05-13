@@ -331,8 +331,8 @@ custom_pal <- c("#b4356c","#1b1581","#e34c5b","#fca33a","#fbeba9","#fdc486",
 mod_levels <- paste0('M',1:12)
 custom_pal <- c("#b4356c","#1b1581","#e34c5b","#fca33a","#fbeba9","#fdc486",
                 "#802b72","#f8c4cc","#c8d9ee","#82a0be","#00a2bf","#006e82")
-tip_size = c(5,5,4,4,3,2,2,2,2)
-node_size = c(4,4,3,3,2,2,2,2,2)
+tip_size = c(3,3,3,2.5,2.5,2,2,2,2)
+node_size = c(4,4,3,3,3,3,3,3,3)
 
 for(i in 1:length(ages)){
   
@@ -342,6 +342,7 @@ for(i in 1:length(ages)){
     geom_rootedge(rootedge = 1) +
     scale_color_manual(values = custom_pal,na.value = "grey70", drop = F) +
     xlim(c(0,tree$root.time)) +
+    theme_tree2() +
     theme(legend.position = "none")
   
   assign(paste0("ggt_",ages[[i]]), ggt)
@@ -352,7 +353,7 @@ for(i in 1:length(ages)){
   laybip = layout_as_bipartite(graph)
   laybip = laybip[,c(2,1)]
   
-  ggn <- ggraph(graph, layout = laybip) +
+  ggn <- ggraph(graph, layout = 'stress') + #, layout = laybip) +
     geom_edge_link(aes(width = weight, color = highpp)) + 
     geom_node_point(aes(shape = type, color = factor(module, levels = mod_levels)), size = node_size[i]) +
     scale_shape_manual(values = c("square","circle")) +
@@ -374,19 +375,19 @@ design <- c(patchwork::area(1, 1, 1, 1),
             patchwork::area(6, 1, 7, 1),
             patchwork::area(6, 2, 7, 2),
             patchwork::area(10,1,12, 1),
-            patchwork::area(10,2,12, 2),
+            patchwork::area(10,2,12, 3),
             patchwork::area(1, 4, 3, 4),
-            patchwork::area(1, 5, 3, 5),
+            patchwork::area(1, 5, 3, 6),
             patchwork::area(4, 4, 7, 4),
-            patchwork::area(4, 5, 7, 5),
+            patchwork::area(4, 5, 7, 6),
             patchwork::area(8, 4,12, 4),
-            patchwork::area(8, 5,12, 5),
-            patchwork::area(1, 7, 6, 7),
+            patchwork::area(8, 5,12, 6),
             patchwork::area(1, 8, 6, 8),
-            patchwork::area(7, 7,12, 7),
-            patchwork::area(7, 8,12, 8))
+            patchwork::area(1, 9, 6,11),
+            patchwork::area(7, 8,12, 8),
+            patchwork::area(7, 9,12,12))
 
-#+ fig3, fig.width = 18, fig.height = 18, warning = F
+#+ fig3, fig.width = 20, fig.height = 15, warning = F
 # plot!
 ggt_80 + ggn_80 +
   ggt_70 + ggn_70 +

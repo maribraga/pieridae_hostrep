@@ -1,7 +1,7 @@
 Pieridae host repertoire - Character history
 ================
 Mariana Braga
-05 May, 2020
+13 May, 2020
 
 -----
 
@@ -63,7 +63,10 @@ it_seq <- seq(20000,200000, 50)
 
 # Time-calibrated tree
 history_dat_time <- filter(history_dat_time, iteration %in% it_seq) %>% 
-  mutate(node_index = node_index + 1)
+  mutate(node_index = node_index + 1,
+         parent_index = parent_index + 1,
+         child1_index = child1_index + 1,
+         child2_index = child2_index + 1)
 
 write.table(history_dat_time,"./inference/history.time.txt", sep="\t", quote = F, row.names = F)
 
@@ -71,7 +74,10 @@ write.table(history_dat_time,"./inference/history.time.txt", sep="\t", quote = F
 history_dat_bl1 = read.table("./inference/out.3.bl1.pieridae.2s.history.txt", sep="\t", header=T, colClasses = colclasses)
 
 history_dat_bl1 <- filter(history_dat_bl1, iteration %in% it_seq) %>% 
-  mutate(node_index = node_index + 1)
+  mutate(node_index = node_index + 1,
+         parent_index = parent_index + 1,
+         child1_index = child1_index + 1,
+         child2_index = child2_index + 1)
 
 write.table(history_dat_bl1,"./inference/history.bl1.txt", sep="\t", quote = F, row.names = F)
 ```
@@ -138,7 +144,7 @@ This part is slow, so I won’t run it here.
 list_m_at_ages = list()
 for (i in 1:(length(ages)-1)) {
   age = ages[i]
-  list_m_at_ages[[i]] = t(make_matrix_at_age( history_dat_time, age, s_hit=c(2) ))
+  list_m_at_ages[[i]] = t(make_matrix_at_age( history_dat_bl1, age, s_hit=c(2) ))
 }
 ```
 
@@ -326,8 +332,8 @@ list_tip_data[[9]] <- tibble(label = tree$tip.label) %>%
 mod_levels <- paste0('M',1:12)
 custom_pal <- c("#b4356c","#1b1581","#e34c5b","#fca33a","#fbeba9","#fdc486",
                 "#802b72","#f8c4cc","#c8d9ee","#82a0be","#00a2bf","#006e82")
-tip_size = c(5,5,4,4,3,2,2,2,2)
-node_size = c(4,4,3,3,2,2,2,2,2)
+tip_size = c(3,3,3,2.5,2.5,2,2,2,2)
+node_size = c(4,4,3,3,3,3,3,3,3)
 
 for(i in 1:length(ages)){
   
@@ -337,6 +343,7 @@ for(i in 1:length(ages)){
     geom_rootedge(rootedge = 1) +
     scale_color_manual(values = custom_pal,na.value = "grey70", drop = F) +
     xlim(c(0,tree$root.time)) +
+    theme_tree2() +
     theme(legend.position = "none")
   
   assign(paste0("ggt_",ages[[i]]), ggt)
@@ -347,7 +354,7 @@ for(i in 1:length(ages)){
   laybip = layout_as_bipartite(graph)
   laybip = laybip[,c(2,1)]
   
-  ggn <- ggraph(graph, layout = laybip) +
+  ggn <- ggraph(graph, layout = 'stress') + #, layout = laybip) +
     geom_edge_link(aes(width = weight, color = highpp)) + 
     geom_node_point(aes(shape = type, color = factor(module, levels = mod_levels)), size = node_size[i]) +
     scale_shape_manual(values = c("square","circle")) +
@@ -369,17 +376,17 @@ design <- c(patchwork::area(1, 1, 1, 1),
             patchwork::area(6, 1, 7, 1),
             patchwork::area(6, 2, 7, 2),
             patchwork::area(10,1,12, 1),
-            patchwork::area(10,2,12, 2),
+            patchwork::area(10,2,12, 3),
             patchwork::area(1, 4, 3, 4),
-            patchwork::area(1, 5, 3, 5),
+            patchwork::area(1, 5, 3, 6),
             patchwork::area(4, 4, 7, 4),
-            patchwork::area(4, 5, 7, 5),
+            patchwork::area(4, 5, 7, 6),
             patchwork::area(8, 4,12, 4),
-            patchwork::area(8, 5,12, 5),
-            patchwork::area(1, 7, 6, 7),
+            patchwork::area(8, 5,12, 6),
             patchwork::area(1, 8, 6, 8),
-            patchwork::area(7, 7,12, 7),
-            patchwork::area(7, 8,12, 8))
+            patchwork::area(1, 9, 6,11),
+            patchwork::area(7, 8,12, 8),
+            patchwork::area(7, 9,12,12))
 ```
 
 ``` r
@@ -403,7 +410,9 @@ ggt_80 + ggn_80 +
 To build weighted networks we use the posterior probabilities as weights
 for each interaction. But since many interactions have really small
 probabilities, we can set a minimum probability, below which the weight
-is set to 0.
+is set to 0. Here I’ll use the same minimum as I used before for
+constructing the graphs. These are independent steps, but it makes sense
+to use the same values.
 
 ``` r
 # probability threshold
