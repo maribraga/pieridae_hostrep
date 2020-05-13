@@ -2,7 +2,7 @@
 title: "Outline for new introduction"
 author: "Mari"
 date: "5/13/2020"
-output: html_document
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
