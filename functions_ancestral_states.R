@@ -3,7 +3,7 @@ require(data.table)
 #require(igraph)
 
 # find lineages (and their repertoires) that exist during the specified age (time slice)
-make_dat_timeslice = function(dat, age) {
+make_dat_timeslice = function(dat, age, tree, host_tree) {
     
     # reduce dat to only include relevant branches
     dat2 = dat[dat$branch_start_time>=age & dat$branch_end_time<=age, ]
@@ -37,7 +37,7 @@ make_dat_timeslice = function(dat, age) {
 }
 
 # make matrix with posterior probabilities of interactions at specified ages (time slices)
-make_matrix_at_age = function(dat, age, s_hit=c(2), drop_empty=T) {
+make_matrix_at_age = function(dat, age, s_hit=c(2), tree, host_tree, drop_empty=T) {
     
   iterations = sort(unique(dat$iteration))
   n_iter = length(iterations)
@@ -54,7 +54,7 @@ make_matrix_at_age = function(dat, age, s_hit=c(2), drop_empty=T) {
         dat_it = dat[ dat$iteration==it, ]
         
         # extract relevant branches
-        dat_it = make_dat_timeslice(dat_it, age)
+        dat_it = make_dat_timeslice(dat_it, age, tree, host_tree)
     
         # add edges ( parasite x host )
         for (i in 1:nrow(dat_it)) {
@@ -83,7 +83,7 @@ make_matrix_at_age = function(dat, age, s_hit=c(2), drop_empty=T) {
 }
 
 # make matrix with posterior probabilities of interactions at specified ages (time slices)
-make_matrix_samples_at_age = function(dat, age, s_hit=c(2), drop_empty=T) {
+make_matrix_samples_at_age = function(dat, age, s_hit=c(2), tree, host_tree, drop_empty=T) {
     
     iterations = sort(unique(dat$iteration))
     n_iter = length(iterations)
@@ -97,7 +97,7 @@ make_matrix_samples_at_age = function(dat, age, s_hit=c(2), drop_empty=T) {
                     c(rev(tree$tip.label), paste0("Index_",(n_parasite_tip+1):n_parasite_lineage)),
                     host_tree$tip.label )
 
-    m = array(0, dim=c(n_iter, n_host_tip, n_parasite_tip), dimnames=m_names)
+    m = array(0, dim=c(n_iter, n_parasite_lineage, n_host_tip), dimnames=m_names)
     #m = matrix(data = 0, nrow = n_parasite_lineage, ncol = n_host_tip)
     
     for (it_idx in 1:length(iterations)) {
@@ -107,7 +107,7 @@ make_matrix_samples_at_age = function(dat, age, s_hit=c(2), drop_empty=T) {
         dat_it = dat[ dat$iteration==it, ]
         
         # extract relevant branches
-        dat_it = make_dat_timeslice(dat_it, age)
+        dat_it = make_dat_timeslice(dat_it, age, tree, host_tree)
     
         # add edges ( parasite x host )
         for (i in 1:nrow(dat_it)) {
