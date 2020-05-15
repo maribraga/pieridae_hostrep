@@ -132,6 +132,19 @@ make_matrix_samples_at_age = function(dat, age, s_hit=c(2), drop_empty=T) {
     return(m)
 }
 
+compute_prob_subgraph_pattern = function(graphs, pattern, tol=0) {
+    n_it = dim(graphs)[1]
+    min_score = length(graphs[1,,]) - tol
+    n_match = 0
+    for (i in 1:n_it) {
+        score = sum(c(graphs[i,,]==pattern))
+        if (score >= min_score) {
+            n_match = n_match + 1
+        }
+    }
+    return(n_match/n_it)
+}
+
 # make matrix with posterior probabilities of interactions at internal nodes
 make_matrix_nodes = function(dat, nodes, state) { 
   
