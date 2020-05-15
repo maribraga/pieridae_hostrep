@@ -15,6 +15,7 @@ To begin, we need to load the necessary R packages
 
 ``` r
 library(dplyr)
+library(ape)
 ```
 
 ## Data
