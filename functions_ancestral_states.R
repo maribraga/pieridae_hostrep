@@ -132,12 +132,39 @@ make_matrix_samples_at_age = function(dat, age, s_hit=c(2), tree, host_tree, dro
     return(m)
 }
 
-compute_prob_subgraph_pattern = function(graphs, pattern, tol=0) {
+compute_prob_subgraph_edges = function(graphs, edges, tol=0) {
+    n_it = dim(graphs)[1]
+    print(n_it)
+    n_match = 0
+    for (i in 1:n_it) {
+        #print(i)
+        match = T
+        for (j in 1:nrow(edges)) {
+            e = edges[j,]
+            #print(e)
+            if ( graphs[i,e[1],e[2]] == 0 ) {
+                match = F
+                break
+            }
+        }        
+        if (match) {
+            cat("it = ", i, " n_match = ", n_match, "\n")
+            n_match = n_match + 1
+        }
+    }
+    return(n_match/n_it)
+}
+
+
+compute_prob_subgraph_pattern_old = function(graphs, pattern, tol=0) {
     n_it = dim(graphs)[1]
     min_score = length(graphs[1,,]) - tol
+    print(min_score)
+    print(length(pattern))
     n_match = 0
     for (i in 1:n_it) {
         score = sum(c(graphs[i,,]==pattern))
+        print(score)
         if (score >= min_score) {
             n_match = n_match + 1
         }
