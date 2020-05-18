@@ -77,13 +77,14 @@ Nymphalidae)*
       - Highest marginal posterior density (marginal HPD) at internal
         nodes  
       - Looks at each host in the repertoire in isolation
+      - Modules from extant network, just to facilitate visualization.
       - *Figure 2: For each internal node (ancestral pierid), we are
         confident that this host was used, regardless of the other
         hosts.*
 
-**Figure 2:** ![States at nodes](./figures_pdf/Fig2.png)
+**Figure 2:** ![States at nodes](./edited_figures/Fig2.png)
 
-  - **Enter networks**
+  - **Enter networks through time**
       - Now, we can look at the entire pool of interactions, instead of
         at one interaction at a time. The patterns that emerge have
         information about the evolutionary process (Braga et al. 2018
@@ -92,7 +93,7 @@ Nymphalidae)*
           - from marginal probabilities (each host independently)
           - from joint probabilities (entire host repertoire)
 
-**Figure 3:** ![Networks and trees](./figures_pdf/Fig3.png)
+**Figure 3:** ![Networks and trees](./edited_figures/Fig3.png)
 
   - Suggested approach:
       - Treat posterior probabilities as a measure of strength of
