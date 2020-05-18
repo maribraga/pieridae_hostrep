@@ -37,11 +37,11 @@ The fundamental host repertoire (FHR) is wider than the realized host repertoire
 
 - Use the whole posterior distribution for estimates of ancestral interactions
 
-  - "Traditional approach": HPD; focus on the main host taxon, 
+  - "Traditional approach": HPD - marginal densities; focus on the main host taxon, 
   which is the one that shows clearer signs of historical association with the clade.
   
-  - Suggested approach: use (almost) all the information from the PD (as in tree estimation);
-  interactions with lower probability carry information as well;
+  - Suggested approach: use (almost) all the information from the PD (as in tree estimation) - 
+  joint probability; interactions with lower probability carry information as well;
   *It has been suggested that the FHR is more phylogenetically conserved than the RHR*
   
 - **We will compare the two ways to summarize reconstructions of host repertoire evolution**
@@ -58,22 +58,44 @@ with Brassicales host plants. And later, shown to have strong similarities with 
 #### The process
 
 - Model variants: host tree (time vs. branch length=1)
-    - Parameter estimates *(figure 1)*
+    - Parameter estimates *(figure 1 - densities)*
     - Main results: bl1; supplementary: time tree
     - *all in 1-Pieridae_parameters.md*
 
+**Figure 1:**
+![Densities](./1-Pieridae_parameters_files/figure-gfm/densities-1.png)
+
 #### Character history / Ancestral states
 
-- "Traditional approach": HPD at internal nodes *(figure 2)*  
+- "Traditional approach": 
+  - Highest marginal posterior density (marginal HPD) at internal nodes  
+  - Looks at each host in the repertoire in isolation
+  - *Figure 2: For each internal node (ancestral pierid), we are confident that this host was used, regardless of the other hosts.*
+  
 
-Even if we reconstruct ancestral networks at several time points, 
-we don't get much more information from the HPD networks (composed of HPD interactions)
-
-- Suggested approach: treat posterior probabilities as a measure of strength of interaction 
-*in coevolutionary terms / strenght of historical interaction / ... *
+**Figure 2:**
+![States at nodes](./figures_pdf/Fig2.png)
 
 
+- **Enter networks**
+  - Now, we can look at the entire pool of interactions, instead of at one interaction at a time. The patterns that emerge have information about the evolutionary process (Braga et al. 2018 Nat Comms). But how to construct networks from samples of character history?
+    - from marginal probabilities (each host independently)
+    - from joint probabilities (entire host repertoire)
 
+**Figure 3:**
+![Networks and trees](./figures_pdf/Fig3.png)
+
+- Suggested approach: 
+  - Treat posterior probabilities as a measure of strength of interaction *(in coevolutionary terms / strength of historical interaction / ...)*
+  - Look at the repertoire as a whole (joint probability). Too many unique repertoires, hard to summarize. Thus, use networks to find interaction patterns.
+  
+  
+#### Figure list
+- Fig 1. Posterior parameter estimates (possible Supplemental Figure??)
+- Fig 2. Ancestral host repertoire estimates w/ modules (nodes) 
+- Fig 3. Modules through time **w/ joint-posterior confidence metrics**
+- Fig 4. Null Hypothesis Testing through time for nestedness/modularity
+- Fig 5. Module/Network size through time
 
 
 
