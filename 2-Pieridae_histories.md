@@ -9,6 +9,15 @@ Script 2 for empirical study performed in Braga et al. 2020 *Evolution
 of butterfly-plant networks revealed by Bayesian inference of host
 repertoire*.
 
+## Packages
+
+To begin, we need to load the necessary R packages
+
+``` r
+library(dplyr)
+library(ape)
+```
+
 ## Data
 
 First we read in the phylogenetic trees for butterflies and plants.

@@ -3,7 +3,7 @@ require(data.table)
 #require(igraph)
 
 # find lineages (and their repertoires) that exist during the specified age (time slice)
-make_dat_timeslice = function(dat, age) {
+make_dat_timeslice = function(dat, age, tree, host_tree) {
     
     # reduce dat to only include relevant branches
     dat2 = dat[dat$branch_start_time>=age & dat$branch_end_time<=age, ]
@@ -37,7 +37,7 @@ make_dat_timeslice = function(dat, age) {
 }
 
 # make matrix with posterior probabilities of interactions at specified ages (time slices)
-make_matrix_at_age = function(dat, age, s_hit=c(2), drop_empty=T) {
+make_matrix_at_age = function(dat, age, s_hit=c(2), tree, host_tree, drop_empty=T) {
     
   iterations = sort(unique(dat$iteration))
   n_iter = length(iterations)
@@ -54,7 +54,7 @@ make_matrix_at_age = function(dat, age, s_hit=c(2), drop_empty=T) {
         dat_it = dat[ dat$iteration==it, ]
         
         # extract relevant branches
-        dat_it = make_dat_timeslice(dat_it, age)
+        dat_it = make_dat_timeslice(dat_it, age, tree, host_tree)
     
         # add edges ( parasite x host )
         for (i in 1:nrow(dat_it)) {
@@ -80,6 +80,167 @@ make_matrix_at_age = function(dat, age, s_hit=c(2), drop_empty=T) {
     m = m * (1/n_iter)
     
     return(m)
+}
+
+# make matrix with posterior probabilities of interactions at specified ages (time slices)
+make_matrix_samples_at_age = function(dat, age, s_hit=c(2), tree, host_tree, drop_empty=T) {
+    
+    iterations = sort(unique(dat$iteration))
+    n_iter = length(iterations)
+  
+    # get dimensions
+    n_host_tip = length( str_split( dat$start_state[1], "" )[[1]] )
+    n_parasite_lineage = length(unique(dat$node_index))
+    n_parasite_tip = (n_parasite_lineage + 1) / 2
+    
+    m_names = list( 1:n_iter,
+                    c(rev(tree$tip.label), paste0("Index_",(n_parasite_tip+1):n_parasite_lineage)),
+                    host_tree$tip.label )
+
+    m = array(0, dim=c(n_iter, n_parasite_lineage, n_host_tip), dimnames=m_names)
+    #m = matrix(data = 0, nrow = n_parasite_lineage, ncol = n_host_tip)
+    
+    for (it_idx in 1:length(iterations)) {
+        it = iterations[it_idx]
+        
+        # get dataset for iteration
+        dat_it = dat[ dat$iteration==it, ]
+        
+        # extract relevant branches
+        dat_it = make_dat_timeslice(dat_it, age, tree, host_tree)
+    
+        # add edges ( parasite x host )
+        for (i in 1:nrow(dat_it)) {
+            n_idx = dat_it$node_index[i]
+            s = as.numeric( str_split (dat_it$end_state[i], "")[[1]] )
+            s_idx = s %in% s_hit
+            #print(n_idx)
+            #print(s_idx)
+            m[it_idx, n_idx, s_idx ] = 1
+        }
+    }
+  
+    # remove empty rows/columns
+    #if (drop_empty) {
+    #    m = m[ rowSums(m)!=0, ]
+    #    m = m[ ,colSums(m)!=0 ]
+    #}
+    
+    # convert to probability
+    #m = m * (1/n_iter)
+    
+    return(m)
+}
+
+compute_module_probs = function(graphs, modules) {
+    
+    modules$prob = 0
+    ages = sort(unique(modules$age))
+    n_ages = length(ages)
+    
+    g_row_names = rownames(graphs[[1]][1,,])
+    g_col_names = colnames(graphs[[1]][1,,])
+    
+    # compute for each age
+    for (i in 1:n_ages) {
+        
+        modules_for_age = modules[ modules$age == ages[i], ]
+        module_names_for_age = sort(unique( modules_for_age$module ))
+
+        n_it = dim(graphs[[i]])[1]
+        
+        # compute for each module at age i
+        for (m_idx in 1:length(module_names_for_age))
+        {
+            # create temp. variable for the module
+            #print( module_names_for_age[m_idx])
+            m = modules_for_age[ modules_for_age$module == module_names_for_age[m_idx], ]
+           # print(m)
+            
+            # get row/col idx names for module
+            m_row_names = intersect( m$name, g_row_names )
+            m_col_names = intersect( m$name, g_col_names )
+            
+            n_match = 0
+            
+            # find num. matches across iterations for the module at age i
+            for (it in 1:n_it)
+            {
+                # get graph sample with index it at age i
+                g_it = graphs[[i]][it,,]
+                #print(g_it[ m_row_names, m_col_names] )
+                
+                # all nodes in m must be fully connected to match
+                match = TRUE
+                
+                for (j in 1:length(m_row_names))
+                {
+                    s_j = m_row_names[j]
+                    for (k in 1:length(m_col_names))
+                    {
+                        s_k = m_col_names[k]
+                        #cat(it, ages[i], s_j, s_k,  g_it[ c(s_j), c(s_k) ], "\n")
+                        if ( g_it[ c(s_j), c(s_k) ] == 0 ) {
+                            #print(g_it[ c(s_j), c(s_k) ])
+                            match = FALSE
+                        }
+                        if (!match) break
+                    }
+                    if (!match) break
+                }
+                if (match)
+                {
+                    n_match = n_match + 1
+                }
+            }
+            m$prob = n_match/n_it
+            #print(m)
+            modules_for_age[ modules_for_age$module == module_names_for_age[m_idx], ] = m
+        }
+        modules[ modules$age == ages[i], ] = modules_for_age
+    }
+    
+    return(modules)
+}
+
+compute_prob_subgraph_edges = function(graphs, edges, tol=0) {
+    n_it = dim(graphs)[1]
+    print(n_it)
+    n_match = 0
+    for (i in 1:n_it) {
+        #print(i)
+        match = T
+        for (j in 1:nrow(edges)) {
+            e = edges[j,]
+            #print(e)
+            if ( graphs[i,e[1],e[2]] == 0 ) {
+                match = F
+                break
+            }
+        }        
+        if (match) {
+            cat("it = ", i, " n_match = ", n_match, "\n")
+            n_match = n_match + 1
+        }
+    }
+    return(n_match/n_it)
+}
+
+
+compute_prob_subgraph_pattern_old = function(graphs, pattern, tol=0) {
+    n_it = dim(graphs)[1]
+    min_score = length(graphs[1,,]) - tol
+    print(min_score)
+    print(length(pattern))
+    n_match = 0
+    for (i in 1:n_it) {
+        score = sum(c(graphs[i,,]==pattern))
+        print(score)
+        if (score >= min_score) {
+            n_match = n_match + 1
+        }
+    }
+    return(n_match/n_it)
 }
 
 # make matrix with posterior probabilities of interactions at internal nodes
