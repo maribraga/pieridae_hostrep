@@ -132,90 +132,6 @@ make_matrix_samples_at_age = function(dat, age, s_hit=c(2), tree, host_tree, dro
     return(m)
 }
 
-compute_module_probs = function(graphs, modules) {
-    
-    
-    # age x mod x (graph, prob)
-    mod_prob_list = list()
-    
-    modules$prob = 0
-    ages = rev(sort(unique(modules$age)))
-    n_ages = length(ages)
-    
-    g_row_names = rownames(graphs[[1]][1,,])
-    g_col_names = colnames(graphs[[1]][1,,])
-    
-    # compute for each age
-    for (i in 1:1) { #n_ages) {
-    
-        mod_prob_list[[ ages[i] ]] = list()
-        
-        modules_for_age = modules[ modules$age == ages[i], ]
-        module_names_for_age = sort(unique( modules_for_age$module ))
-
-        n_it = dim(graphs[[i]])[1]
-        
-        # compute for each module at age i
-        for (m_idx in 1:length(module_names_for_age))
-        {
-            m_name = module_names_for_age[m_idx]
-            mod_prob_list[[ ages[i] ]][[ m_name ]] = list()
-            
-            # create temp. variable for the module
-            #print( module_names_for_age[m_idx])
-            m = modules_for_age[ modules_for_age$module == m_name, ]
-            
-            
-            # get row/col idx names for module
-            m_row_names = intersect( m$name, g_row_names )
-            m_col_names = intersect( m$name, g_col_names )
-            
-            n_match = 0
-            
-            # find num. matches across iterations for the module at age i
-            for (it in 1:n_it)
-            {
-                # get graph sample with index it at age i
-                g_it = graphs[[i]][it,,]
-                #print(g_it)
-                print(m_row_names)
-                print(m_col_names)
-                print(g_it[ m_row_names, m_col_names] )
-                #break
-                # all nodes in m must be fully connected to match
-                match = TRUE
-                
-                for (j in 1:length(m_row_names))
-                {
-                    s_j = m_row_names[j]
-                    for (k in 1:length(m_col_names))
-                    {
-                        s_k = m_col_names[k]
-                        #cat(it, ages[i], s_j, s_k,  g_it[ c(s_j), c(s_k) ], "\n")
-                        if ( g_it[ c(s_j), c(s_k) ] == 0 ) {
-                            #print(g_it[ c(s_j), c(s_k) ])
-                            match = FALSE
-                        }
-                        if (!match) break
-                    }
-                    if (!match) break
-                }
-                if (match)
-                {
-                    n_match = n_match + 1
-                }
-            }
-            m$prob = n_match/n_it
-            #print(m)
-            modules_for_age[ modules_for_age$module == module_names_for_age[m_idx], ] = m
-        }
-        modules[ modules$age == ages[i], ] = modules_for_age
-    }
-    
-    return(modules)
-}
-
-
 
 compute_all_module_probs = function(graphs, modules) {
     
@@ -223,7 +139,7 @@ compute_all_module_probs = function(graphs, modules) {
     mod_prob_list = list()
     
     # initialize and re-order age vector
-    ages = rev(sort(unique(modules$age)))
+    ages = as.character(rev(sort(unique(modules$age))))
     n_ages = length(ages)
     
     # get the full set of row (insect) and column (plant) names
@@ -250,18 +166,10 @@ compute_all_module_probs = function(graphs, modules) {
             m_name = module_names_for_age[m_idx]
             
             # extract the module of interest from the module dataframe
-            #print( module_names_for_age[m_idx])
             m = modules_for_age[ modules_for_age$module == m_name, ]
 
             # initialize info for a particular module+age
             mod_prob_list[[ ages[i] ]][[ m_name ]] = list()
-
-            #print(graphs[[i]][1,,])
-            #n_edge = sum(graphs[[i]][1,,])
-            #cat("age=",ages[i], " n_edge=",n_edge,"\n", sep="")
-            #stop()
-
-            n_match = 0
 
             # find num. matches across iterations for the module at age i
             for (it in 1:n_it)
@@ -275,7 +183,11 @@ compute_all_module_probs = function(graphs, modules) {
                 g_it = graphs[[i]][it,,]
                 
                 # now, extract the subgraph for module m for iteration it at age i
-                m_it = g_it[ m_row_names, m_col_names]
+                m_it = matrix(g_it[ m_row_names, m_col_names],
+                              nrow=length(m_row_names),
+                              ncol=length(m_col_names))
+                colnames(m_it)=m_col_names
+                rownames(m_it)=m_row_names
                 
                 # because the row and col names are constant, each m_it will have
                 # the same dimensions; this is useful, because it means we can
@@ -290,10 +202,12 @@ compute_all_module_probs = function(graphs, modules) {
                 # m_it if no such previous subgraph has been previously recorded
                 subgraph_exists = is.null( mod_prob_list[[ ages[i] ]][[ m_name ]][[ s_it_flat ]] )
                 
+                # ... create new record if needed!
                 if (subgraph_exists) {
                     mod_prob_list[[ ages[i] ]][[ m_name ]][[ s_it_flat ]] = list()
                     mod_prob_list[[ ages[i] ]][[ m_name ]][[ s_it_flat ]]$count = 0
                     mod_prob_list[[ ages[i] ]][[ m_name ]][[ s_it_flat ]]$graph = m_it
+                    mod_prob_list[[ ages[i] ]][[ m_name ]][[ s_it_flat ]]$str = s_it_flat
                 }
                 
                 # increment the count for the subgraph pattern
@@ -301,54 +215,21 @@ compute_all_module_probs = function(graphs, modules) {
                 mod_prob_list[[ ages[i] ]][[ m_name ]][[ s_it_flat ]]$count = m_it_count + 1
             }
             
-            # now compute the probability of the module subgraph pattern
-            m_it_prob = m_it_count = mod_prob_list[[ ages[i] ]][[ m_name ]][[ s_it_flat ]]$count / n_it
-            mod_prob_list[[ ages[i] ]][[ m_name ]][[ s_it_flat ]]$prob = m_it_prob
+            
+            # revisit each module
+            for (k in 1:length(mod_prob_list[[ ages[i] ]][[ m_name ]])) {
+                
+                # now compute the probability of the module subgraph pattern
+                m_it_prob = mod_prob_list[[ ages[i] ]][[ m_name ]][[ k ]]$count / n_it
+                mod_prob_list[[ ages[i] ]][[ m_name ]][[ k ]]$prob = m_it_prob
+            }
+            
         }
     }
 
     return(mod_prob_list)
 }
 
-compute_prob_subgraph_edges = function(graphs, edges, tol=0) {
-    n_it = dim(graphs)[1]
-    print(n_it)
-    n_match = 0
-    for (i in 1:n_it) {
-        #print(i)
-        match = T
-        for (j in 1:nrow(edges)) {
-            e = edges[j,]
-            #print(e)
-            if ( graphs[i,e[1],e[2]] == 0 ) {
-                match = F
-                break
-            }
-        }        
-        if (match) {
-            cat("it = ", i, " n_match = ", n_match, "\n")
-            n_match = n_match + 1
-        }
-    }
-    return(n_match/n_it)
-}
-
-
-compute_prob_subgraph_pattern_old = function(graphs, pattern, tol=0) {
-    n_it = dim(graphs)[1]
-    min_score = length(graphs[1,,]) - tol
-    print(min_score)
-    print(length(pattern))
-    n_match = 0
-    for (i in 1:n_it) {
-        score = sum(c(graphs[i,,]==pattern))
-        print(score)
-        if (score >= min_score) {
-            n_match = n_match + 1
-        }
-    }
-    return(n_match/n_it)
-}
 
 # make matrix with posterior probabilities of interactions at internal nodes
 make_matrix_nodes = function(dat, nodes, state) { 
@@ -392,3 +273,133 @@ make_matrix_nodes = function(dat, nodes, state) {
   
   return(g)
 }
+
+
+
+### GRAVEYARD OF DEADLY CODE
+
+
+# compute_module_probs = function(graphs, modules) {
+#     
+#     
+#     # age x mod x (graph, prob)
+#     mod_prob_list = list()
+#     
+#     modules$prob = 0
+#     ages = rev(sort(unique(modules$age)))
+#     n_ages = length(ages)
+#     
+#     g_row_names = rownames(graphs[[1]][1,,])
+#     g_col_names = colnames(graphs[[1]][1,,])
+#     
+#     # compute for each age
+#     for (i in 1:1) { #n_ages) {
+#     
+#         mod_prob_list[[ ages[i] ]] = list()
+#         
+#         modules_for_age = modules[ modules$age == ages[i], ]
+#         module_names_for_age = sort(unique( modules_for_age$module ))
+# 
+#         n_it = dim(graphs[[i]])[1]
+#         
+#         # compute for each module at age i
+#         for (m_idx in 1:length(module_names_for_age))
+#         {
+#             m_name = module_names_for_age[m_idx]
+#             mod_prob_list[[ ages[i] ]][[ m_name ]] = list()
+#             
+#             # create temp. variable for the module
+#             #print( module_names_for_age[m_idx])
+#             m = modules_for_age[ modules_for_age$module == m_name, ]
+#             
+#             
+#             # get row/col idx names for module
+#             m_row_names = intersect( m$name, g_row_names )
+#             m_col_names = intersect( m$name, g_col_names )
+#             
+#             n_match = 0
+#             
+#             # find num. matches across iterations for the module at age i
+#             for (it in 1:n_it)
+#             {
+#                 # get graph sample with index it at age i
+#                 g_it = graphs[[i]][it,,]
+#                 #print(g_it)
+#                 print(m_row_names)
+#                 print(m_col_names)
+#                 print(g_it[ m_row_names, m_col_names] )
+#                 #break
+#                 # all nodes in m must be fully connected to match
+#                 match = TRUE
+#                 
+#                 for (j in 1:length(m_row_names))
+#                 {
+#                     s_j = m_row_names[j]
+#                     for (k in 1:length(m_col_names))
+#                     {
+#                         s_k = m_col_names[k]
+#                         #cat(it, ages[i], s_j, s_k,  g_it[ c(s_j), c(s_k) ], "\n")
+#                         if ( g_it[ c(s_j), c(s_k) ] == 0 ) {
+#                             #print(g_it[ c(s_j), c(s_k) ])
+#                             match = FALSE
+#                         }
+#                         if (!match) break
+#                     }
+#                     if (!match) break
+#                 }
+#                 if (match)
+#                 {
+#                     n_match = n_match + 1
+#                 }
+#             }
+#             m$prob = n_match/n_it
+#             #print(m)
+#             modules_for_age[ modules_for_age$module == module_names_for_age[m_idx], ] = m
+#         }
+#         modules[ modules$age == ages[i], ] = modules_for_age
+#     }
+#     
+#     return(modules)
+# }
+# 
+
+
+# compute_prob_subgraph_pattern_old = function(graphs, pattern, tol=0) {
+#     n_it = dim(graphs)[1]
+#     min_score = length(graphs[1,,]) - tol
+#     print(min_score)
+#     print(length(pattern))
+#     n_match = 0
+#     for (i in 1:n_it) {
+#         score = sum(c(graphs[i,,]==pattern))
+#         print(score)
+#         if (score >= min_score) {
+#             n_match = n_match + 1
+#         }
+#     }
+#     return(n_match/n_it)
+# }
+
+
+# compute_prob_subgraph_edges = function(graphs, edges, tol=0) {
+#     n_it = dim(graphs)[1]
+#     print(n_it)
+#     n_match = 0
+#     for (i in 1:n_it) {
+#         #print(i)
+#         match = T
+#         for (j in 1:nrow(edges)) {
+#             e = edges[j,]
+#             #print(e)
+#             if ( graphs[i,e[1],e[2]] == 0 ) {
+#                 match = F
+#                 break
+#             }
+#         }        
+#         if (match) {
+#             cat("it = ", i, " n_match = ", n_match, "\n")
+#             n_match = n_match + 1
+#         }
+#     }
+#     return(n_match/n_it)
+# }

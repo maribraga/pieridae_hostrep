@@ -24,48 +24,24 @@ for (i in 1:n_ages) {
 }
 
 # get all subgraphs (and probs) for module
-
 all_mod_prob = compute_all_module_probs(graphs, all_mod_edited)
 
+# The output is a 3-dimensional list; the elements are age x module x pattern;
+# You could always print the entire object.
+# print(all_mod_prob)
 
+# ... or print all modules x patterns for age "50"
+# print(all_mod_prob[[ "50" ]])
+
+# ... or print all patterns for a module "M2" at age "50"
+# print(all_mod_prob[[ "50" ]][[ "M2" ]])
+
+# Printing a specific pattern for a given module and age is trickier, since we
+# distinguish sampled graphs for modules using a vector-string representation of
+# the subgraph, so it can be used as a key in a list. Alternatively, you can
+# access list elements using an integer as an index (per usual). Module
+# subgraph patterns are not sorted in order of probability, but we could
+# do that if needed.
 # 
-# ###
-# # NOTE: Here is an example for a `module_list` variable
-# # that we will want to generate automatically. 
-# 
-# module_template = graphs[[1]][1,,]
-# module_template[ 1:length(module_template) ] = 0
-# 
-# module_example = module_template
-# module_example_edges = matrix(c(
-#     "Index_70", "Fabaceae",
-#     "Index_70", "Brassicaceae"), ncol=2, byrow=T)
-# for (i in 1:nrow(module_example_edges)) {
-#     e = module_example_edges[i,]
-#     module_example[ c(e[1]), c(e[2]) ] = 1
-# }
-# 
-# module_list = list( module_example_edges )
-# 
-# for (i in length(module_list)) {
-#     module = module_list[[i]]
-#     p = compute_prob_subgraph_edges( graphs[[1]], module )
-#     print(p)
-# }
-# 
-# 
-# for (k in 1:dim(graphs[[1]])[1]) {
-#     g = graphs[[1]][k,,]
-#     ni = rownames(g)
-#     nj = colnames(g)
-#     for (i in 1:dim(g)[1]) {
-#         for (j in 1:dim(g)[2]) {
-#             if (g[i,j] == 1) {
-#                 cat(k,"--",ni[i],"--",nj[j],":",i,j,"\n")
-#             }
-#         }
-#     }
-#     cat("\n")
-# }
-#         
-#     
+# ... in any case, to print the 1st pattern for module "M2" at age "50"
+# print(all_mod_prob[[ "50" ]][[ "M2" ]][[ 1 ]])
