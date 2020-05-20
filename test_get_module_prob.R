@@ -9,8 +9,8 @@ tree <- read.tree("./data/bphy_pie_ladder.phy")
 host_tree <- read.tree("./data/angio_pie_50tips_ladder.phy")
 all_mod_edited <- read.csv("./networks/all_mod_bl1.csv", header = T, stringsAsFactors = F)
 
-#dat = dat_full[dat_full$iteration %in% unique(dat_full$iteration)[1:20], ]
-dat = dat_full
+dat = dat_full[dat_full$iteration %in% unique(dat_full$iteration)[1:100], ]
+#dat = dat_full
 ages = c(80,70,60,50,40,30,20,10,0)
 #ages = c(60)
 n_ages = length(ages)
@@ -20,12 +20,12 @@ n_ages = length(ages)
 graphs = list()
 for (i in 1:n_ages) {
     graphs[[i]] = make_matrix_samples_at_age(dat=dat, age=ages[i], s_hit=c(2), tree, host_tree)
-    
     # modules = make_modules_for_age(dat)
 }
 
+# get all subgraphs (and probs) for module
 
-all_mod_prob = compute_module_probs(graphs, all_mod_edited)
+all_mod_prob = compute_all_module_probs(graphs, all_mod_edited)
 
 
 # 
