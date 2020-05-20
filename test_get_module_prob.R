@@ -9,22 +9,31 @@ tree <- read.tree("./data/bphy_pie_ladder.phy")
 host_tree <- read.tree("./data/angio_pie_50tips_ladder.phy")
 all_mod_edited <- read.csv("./networks/all_mod_bl1.csv", header = T, stringsAsFactors = F)
 
-dat = dat_full[dat_full$iteration %in% unique(dat_full$iteration)[1:100], ]
-#dat = dat_full
-ages = c(80,70,60,50,40,30,20,10,0)
-#ages = c(60)
+# thin matrix to 10% of original size (for speed)
+f_thin = 0.1
+it = unique(dat_full$iteration)
+it_thin = it[ seq(1,length(it),length.out=f_thin*length(it)) ]
+dat = dat_full[dat_full$iteration %in% it_thin, ]
+
+# record ages
+ages = rev(sort(unique(all_mod_edited$age)))
 n_ages = length(ages)
 
-
-
+# collect posterior samples of graphs for each age
 graphs = list()
 for (i in 1:n_ages) {
     graphs[[i]] = make_matrix_samples_at_age(dat=dat, age=ages[i], s_hit=c(2), tree, host_tree)
-    # modules = make_modules_for_age(dat)
 }
 
 # get all subgraphs (and probs) for module
 all_mod_prob = compute_all_module_probs(graphs, all_mod_edited)
+
+# save output
+# saveRDS(all_mod_prob, file="all_mod_prob.rds")
+
+# load output
+# all_mod_prob = readRDS(file="all_mod_prob.rds")
+
 
 # The output is a 3-dimensional list; the elements are age x module x pattern;
 # You could always print the entire object.
