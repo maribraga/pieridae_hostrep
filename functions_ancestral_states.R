@@ -36,7 +36,7 @@ make_dat_timeslice = function(dat, age, tree, host_tree) {
     return(rbindlist(ret))
 }
 
-# make matrix with posterior probabilities of interactions at specified ages (time slices)
+# make matrix with marginal posterior probabilities of interactions at specified ages (time slices)
 make_matrix_at_age = function(dat, age, s_hit=c(2), tree, host_tree, drop_empty=T) {
     
   iterations = sort(unique(dat$iteration))
@@ -82,7 +82,7 @@ make_matrix_at_age = function(dat, age, s_hit=c(2), tree, host_tree, drop_empty=
     return(m)
 }
 
-# make matrix with posterior probabilities of interactions at specified ages (time slices)
+# make matrix with posterior probabilities of repertoires at specified ages (time slices)
 make_matrix_samples_at_age = function(dat, age, s_hit=c(2), tree, host_tree, drop_empty=T) {
     
     iterations = sort(unique(dat$iteration))
@@ -231,7 +231,7 @@ compute_all_module_probs = function(graphs, modules) {
 }
 
 
-# make matrix with posterior probabilities of interactions at internal nodes
+# make matrix with marginal posterior probabilities of interactions at internal nodes
 make_matrix_nodes = function(dat, nodes, state) { 
   
   dat <- filter(dat, node_index %in% nodes)
