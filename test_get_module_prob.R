@@ -10,9 +10,20 @@ host_tree <- read.tree("./data/angio_pie_50tips_ladder.phy")
 # make sure to get history and modules for the same analysis (bl1 or time)
 all_mod_edited <- read.csv("./networks/all_mod_bl1.csv", header = T, stringsAsFactors = F)
 
+
+# NOTE: this manually increments various node index values in the history file
+#       may or may not be necessary (check w/ Mari)
+node_idx = c("node_index","parent_index","child1_index","child2_index")
+dat_full[,node_idx] = dat_full[,node_idx] + 1
+
+# this file is used to compare values between the new `graphs` object and
+# Mari's pre-computed values
+list_m_at_ages <- readRDS("./inference/list_m_at_ages_bl1.rds")
+
 # thin matrix to 10% of original size (for speed)
-f_thin = 0.5
+f_thin = 0.1
 it = unique(dat_full$iteration)
+it = it[ (it >= 2e4 & it <= 2e5) ]
 it_thin = it[ seq(1,length(it),length.out=f_thin*length(it)) ]
 dat = dat_full[dat_full$iteration %in% it_thin, ]
 
@@ -26,6 +37,14 @@ graphs = list()
 for (i in 1:n_ages) {
     graphs[[i]] = make_matrix_samples_at_age(dat=dat, age=ages[i], s_hit=c(2), tree, host_tree)
 }
+
+# NOTE: uncomment these lines to compare marginal probs from graphs against
+#       the marginal probs in list_m_at_ages
+# g_check = t( colSums(graphs[[1]],dim=1) / length(it_thin) )
+# row_idx = c("Fabaceae")
+# col_idx = c("Index_70","Index_129")
+# g_check[row_idx,col_idx]
+# list_m_at_ages[[1]][row_idx,col_idx]
 
 # get all subgraphs (and probs) for module
 all_mod_prob = compute_all_module_probs(graphs, all_mod_edited)
