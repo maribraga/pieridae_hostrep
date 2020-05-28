@@ -71,12 +71,12 @@ dim(ext_net)
 
 colclasses <- c(rep("numeric",7),"character","character","numeric","character",rep("numeric",3))
 #+ eval = FALSE
-history_dat_time = read.table("./inference/out.2.real.pieridae.2s.history.txt", sep="\t", header=T, colClasses = colclasses)
- 
-# define burnin and sampling interval (I'll keep the original interval) 
+ # define burnin and sampling interval (I'll keep the original interval) 
 it_seq <- seq(20000,200000, 50)  
 
 # Time-calibrated tree
+history_dat_time = read.table("./inference/out.2.real.pieridae.2s.history.txt", sep="\t", header=T, colClasses = colclasses)
+
 history_dat_time <- filter(history_dat_time, iteration %in% it_seq) %>% 
   mutate(node_index = node_index + 1,
          parent_index = parent_index + 1,
@@ -86,9 +86,9 @@ history_dat_time <- filter(history_dat_time, iteration %in% it_seq) %>%
 write.table(history_dat_time,"./inference/history.time.txt", sep="\t", quote = F, row.names = F)
 
 # Tree with branch lengths = 1
-history_dat_bl1 = read.table("./inference/out.3.bl1.pieridae.2s.history.txt", sep="\t", header=T, colClasses = colclasses)
+history_dat_bl1_raw = read.table("./inference/out.3.bl1.pieridae.2s.history.txt", sep="\t", header=T, colClasses = colclasses)
 
-history_dat_bl1 <- filter(history_dat_bl1, iteration %in% it_seq) %>% 
+history_dat_bl1 <- filter(history_dat_bl1_raw, iteration %in% it_seq) %>% 
   mutate(node_index = node_index + 1,
          parent_index = parent_index + 1,
          child1_index = child1_index + 1,
@@ -96,7 +96,7 @@ history_dat_bl1 <- filter(history_dat_bl1, iteration %in% it_seq) %>%
 
 write.table(history_dat_bl1,"./inference/history.bl1.txt", sep="\t", quote = F, row.names = F)
 
-#' The next time you run this script you just need to read in the thinned histories.
+#' The next time you run this script you just need to read in the processed histories.
 #' One file with sampled histories when using the time-calibrated host tree,
 #' and one using the transformed host tree (all branch lengths = 1).
 #' 
@@ -153,7 +153,7 @@ ages = c(80,70,60,50,40,30,20,10,0)
 list_m_at_ages = list()
 for (i in 1:(length(ages)-1)) {
   age = ages[i]
-  list_m_at_ages[[i]] = t(make_matrix_at_age( history_dat_bl1, age, s_hit=c(2) ))
+  list_m_at_ages[[i]] = t(make_matrix_at_age( history_dat_bl1, age, s_hit=c(2), tree, host_tree ))
 }
 
 #' I have done this before and saved the list as a .rds file.
@@ -321,10 +321,10 @@ list_tip_data[[9]] <- tibble(label = tree$tip.label) %>%
 #'
 
 /* # if using time tree, these is T1
-mod_levels <- c(paste0('M',1:12),'T1')
-custom_pal <- c("#b4356c","#1b1581","#e34c5b","#fca33a","#fbeba9","#fdc486",
-                "#802b72","#f8c4cc","#c8d9ee","#82a0be","#00a2bf","#006e82", 
-                "grey10")
+# mod_levels <- c(paste0('M',1:12),'T1')
+# custom_pal <- c("#b4356c","#1b1581","#e34c5b","#fca33a","#fbeba9","#fdc486",
+#                 "#802b72","#f8c4cc","#c8d9ee","#82a0be","#00a2bf","#006e82", 
+#                 "grey10")
 */
   
 # Choose colors and sizes
@@ -484,6 +484,67 @@ both_mods <- full_join(rename(all_mod_edited, bmodule=module) %>% select(-origin
 (conflict <- filter(both_mods, bmodule!=wmodule)) # NAs are dropped by filter  
 
   
+/*# __Make tidygraphs with modules ----
+*/
+#' #### Make tidygraphs with wmodule information
+#' 
+#' Get weighted graph from list_m_at_ages after setting minimum weight
+
+minp <- 10
+list_wtgraphs <- list()
+for(n in 1:length(list_wnets)){
+  wnet <- list_m_at_ages[[n]]
+  for(i in 1:nrow(wnet)){
+    for(j in 1:ncol(wnet)){
+      if(wnet[i,j] < minp/100){
+        wnet[i,j] = 0
+      }
+    }
+  }
+  wnet = wnet[ rowSums(wnet)!=0, ]
+  wnet = wnet[ ,colSums(wnet)!=0 ]
+  
+  wgraph <- as_tbl_graph(wnet, directed = F) %>% 
+    left_join(filter(all_wmod_edited, age == ages[n]), by = "name") %>% 
+    select(type, name, module)
+  
+  list_wtgraphs[[n]] <- wgraph
+}
+
+
+/*# __Make ggtree ----
+*/
+#' #### Make tree for each age
+#' 
+# Must be a tree with node labels
+#tree <- treeio::read.newick("./data/tree_nodelab.tre", node.label = "label")
+# Add its root time
+#tree$root.time <- max(tree.age(tree)$ages)
+
+# Slice the tree at ages and create data frame with module info
+list_subtreesw <- list()
+list_tip_dataw <- list()
+
+# model "acctran" always uses the value from the ancestral node
+for(i in 1:(length(ages)-1)){
+  subtree <- slice.tree(tree, age = ages[[i]], "acctran")
+  list_subtreesw[[i]] <- subtree
+  
+  graph <- list_wtgraphs[[i]]
+  mod_from_graph <- tibble(module = activate(graph,nodes) %>% filter(type == TRUE) %>% pull(module),
+                           label = activate(graph,nodes) %>% filter(type == TRUE) %>% pull(name))
+  # extra step just to check that tip labels and graph node names match
+  tip_data <- tibble(label = subtree$tip.label) %>% 
+    inner_join(mod_from_graph, by = "label") 
+  list_tip_dataw[[i]] <- tip_data
+}
+
+list_subtreesw[[9]] <- tree
+list_tip_dataw[[9]] <- tibble(label = tree$tip.label) %>% 
+  inner_join(filter(all_wmod_edited, age == 0), by = c("label" = "name"))
+
+
+
 /*## States at nodes ----
 */
 #' ### States at internal nodes
@@ -500,11 +561,12 @@ hosts <- host_tree$tip.label
 # which internal nodes to use? I'll go for all of them.
 nodes <- 67:131
 
-pp <- make_matrix_nodes(history_dat, nodes, c(2))
+pp <- make_matrix_nodes(history_dat_bl1, nodes, c(2))
 row.names(pp) <- paste0("Index_",nodes)
 colnames(pp) <- host_tree$tip.label
 
-assign(paste0("pp_",name), pp)
+/*assign(paste0("pp_",name), pp)
+*/
 
 graph <- graph_from_incidence_matrix(pp, weighted = TRUE)
 el <- get.data.frame(graph, what = "edges") %>% 
@@ -597,3 +659,160 @@ ggtree_but <- ggtree(tree) + geom_tiplab(size = 2) + geom_nodelab(size = 2) +
 
 #+ fig.width = 7, fig.height = 7
 ggtree_host + ggtree_but + plot_layout(widths = c(2,3))
+
+
+# END ----
+
+/* # Weighted networks
+  
+/*# __Make weighted tidygraphs with modules ----
+*/
+#' #### Make tidygraphs with module information
+#' 
+#' Get weighted graph from list_m_at_ages after setting minimum weight
+  
+minp <- 10
+
+list_wtgraphs <- list()
+for(n in 1:length(list_wnets)){
+  wnet <- list_m_at_ages[[n]]
+  for(i in 1:nrow(wnet)){
+    for(j in 1:ncol(wnet)){
+      if(wnet[i,j] < minp/100){
+        wnet[i,j] = 0
+      }
+    }
+  }
+  wnet = wnet[ rowSums(wnet)!=0, ]
+  wnet = wnet[ ,colSums(wnet)!=0 ]
+  
+  wgraph <- as_tbl_graph(wnet, directed = F) %>% 
+    left_join(filter(all_wmod_edited, age == ages[n]), by = "name") %>% 
+    select(type, name, module)
+  
+  list_wtgraphs[[n]] <- wgraph
+}
+
+
+/*# __Make ggtree ----
+*/
+#' #### Make tree for each age
+#' 
+# # Must be a tree with node labels
+# tree <- treeio::read.newick("./data/tree_nodelab.tre", node.label = "label")
+# # Add its root time
+# tree$root.time <- max(tree.age(tree)$ages)
+
+# Slice the tree at ages and create data frame with module info
+list_wsubtrees <- list()
+list_tip_wdata <- list()
+
+# model "acctran" always uses the value from the ancestral node
+for(i in 1:(length(ages)-1)){
+  subtree <- slice.tree(tree, age = ages[[i]], "acctran")
+  list_wsubtrees[[i]] <- subtree
+  
+  graph <- list_wtgraphs[[i]]
+  wmod_from_graph <- tibble(module = activate(graph,nodes) %>% filter(type == TRUE) %>% pull(module),
+                             label = activate(graph,nodes) %>% filter(type == TRUE) %>% pull(name))
+  # extra step just to check that tip labels and graph node names match
+  tip_data <- tibble(label = subtree$tip.label) %>% 
+    inner_join(wmod_from_graph, by = "label") 
+  list_tip_wdata[[i]] <- tip_data
+}
+
+list_wsubtrees[[9]] <- tree
+list_tip_wdata[[9]] <- tibble(label = tree$tip.label) %>% 
+  inner_join(filter(all_wmod_edited, age == 0), by = c("label" = "name"))
+
+
+/*# __Plot ggtree and ggraph ----
+*/
+  
+#' #### Plot networks and trees
+#'
+
+/* # if using time tree, these is T1
+# mod_levels <- c(paste0('M',1:12),'T1')
+# custom_pal <- c("#b4356c","#1b1581","#e34c5b","#fca33a","#fbeba9","#fdc486",
+#                 "#802b72","#f8c4cc","#c8d9ee","#82a0be","#00a2bf","#006e82", 
+#                 "grey10")
+*/
+
+# Choose colors and sizes
+wmod_levels <- c(paste0('M',1:12),paste0('T',1:3))
+custom_pal <- c("#b4356c","#1b1581","#e34c5b","#fca33a","#fbeba9","#fdc486",
+                "#802b72","#f8c4cc","#c8d9ee","#82a0be","#00a2bf","#006e82",
+                "grey30", "grey60", "grey90")
+tip_size = c(3,3,3,2.5,2.5,2,2,2,2)
+node_size = c(4,4,3,3,3,3,3,3,3)
+
+for(i in 1:length(ages)){
+  
+  subtree <- list_wsubtrees[[i]]
+  ggt <- ggtree(subtree, ladderize = F) %<+% list_tip_wdata[[i]] +
+    geom_tippoint(aes(color = factor(module, levels = wmod_levels)), size = tip_size[i]) + 
+    geom_rootedge(rootedge = 1) +
+    scale_color_manual(values = custom_pal,na.value = "grey70", drop = F) +
+    xlim(c(0,tree$root.time)) +
+    theme_tree2() +
+    theme(legend.position = "none")
+  
+  assign(paste0("ggtw_",ages[[i]]), ggt)
+  
+  graph <- list_wtgraphs[[i]] %E>% 
+    mutate(highpp = case_when(weight >= 0.9 ~ "high",
+                              weight < 0.9 ~ "low"))
+  laybip = layout_as_bipartite(graph)
+  laybip = laybip[,c(2,1)]
+  
+  ggn <- ggraph(graph, layout = 'stress') + #, layout = laybip) +
+    geom_edge_link(aes(width = weight, color = highpp)) + 
+    geom_node_point(aes(shape = type, color = factor(module, levels = wmod_levels)), size = node_size[i]) +
+    scale_shape_manual(values = c("square","circle")) +
+    scale_color_manual(values = custom_pal, na.value = "grey70", drop = F) +
+    scale_edge_width("Probability", range = c(0.1,1)) +
+    scale_edge_color_manual(values = c("grey50","grey80")) +
+    labs(title = paste0(ages[[i]]," Ma"), shape = "", color = "Module") +    # CHANGE
+    theme_void() +
+    theme(legend.position = "none")
+  
+  assign(paste0("ggnw_",ages[[i]]), ggn)
+}
+
+# # define layout
+# design <- c(patchwork::area(1, 1, 1, 1),
+#             patchwork::area(1, 2, 1, 2),
+#             patchwork::area(3, 1, 3, 1),
+#             patchwork::area(3, 2, 3, 2),
+#             patchwork::area(6, 1, 7, 1),
+#             patchwork::area(6, 2, 7, 2),
+#             patchwork::area(10,1,12, 1),
+#             patchwork::area(10,2,12, 3),
+#             patchwork::area(1, 4, 3, 4),
+#             patchwork::area(1, 5, 3, 6),
+#             patchwork::area(4, 4, 7, 4),
+#             patchwork::area(4, 5, 7, 6),
+#             patchwork::area(8, 4,12, 4),
+#             patchwork::area(8, 5,12, 6),
+#             patchwork::area(1, 8, 6, 8),
+#             patchwork::area(1, 9, 6,11),
+#             patchwork::area(7, 8,12, 8),
+#             patchwork::area(7, 9,12,12))
+
+#+ fig3, fig.width = 20, fig.height = 15, warning = F
+# plot!
+ggtw_80 + ggnw_80 +
+  ggtw_70 + ggnw_70 +
+  ggtw_60 + ggnw_60 +
+  ggtw_50 + ggnw_50 +
+  ggtw_40 + ggnw_40 +
+  ggtw_30 + ggnw_30 +
+  ggtw_20 + ggnw_20 +
+  ggtw_10 + ggnw_10 +
+  ggtw_0 + ggnw_0 +
+  plot_layout(design = design)
+
+
+
+*/

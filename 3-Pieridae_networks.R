@@ -138,7 +138,7 @@ nit <- 1000
 
 #+ eval = FALSE  
 Nulls_r00 <- list()
-Nulls_r2d <- list()
+#Nulls_r2d <- list()
 
 # gotta skip network at 80 Ma because it only has one host
 for(i in 2:length(ages)){
@@ -146,9 +146,9 @@ for(i in 2:length(ages)){
   sim_r00 <- simulate(null_r00, nsim=nit, seed = 1)
   Nulls_r00[[i]] <- sim_r00
   
-  null_r2d <- vegan::nullmodel(net_list[[i]], "r2dtable") 
-  sim_r2d <- simulate(null_r2d, nsim=nit, seed = 1)
-  Nulls_r2d[[i]] <- sim_r2d
+  #null_r2d <- vegan::nullmodel(net_list[[i]], "r2dtable") 
+  #sim_r2d <- simulate(null_r2d, nsim=nit, seed = 1)
+  #Nulls_r2d[[i]] <- sim_r2d
   
 }  
 
@@ -159,7 +159,7 @@ for(i in 2:length(ages)){
 #' ### Modularity
 #' 
 #' Let's calculate the modularity of each null network,
-#' except for 80, 70, and 60 Ma. They are too small.
+#' except for 80 and 70 Ma. They are too small.
   
 source("my_compute_module.R")  
 
@@ -169,17 +169,17 @@ Qnull <- tibble()
 for(i in 3:length(ages)){
 
   sim_random <- Nulls_r00[[i]]
-  sim_allsums <- Nulls_r2d[[i]]
+  #sim_allsums <- Nulls_r2d[[i]]
 
   for(j in 1:nit){
     Qrandom <- mycomputeModules(sim_random[,,j])@likelihood
-    Qallsums <- mycomputeModules(sim_allsums[,,j])@likelihood
+    #Qallsums <- mycomputeModules(sim_allsums[,,j])@likelihood
 
-    Qnull <- bind_rows(Qnull, tibble(age = ages[i], sim=j, allsums=Qallsums, random=Qrandom))
+    Qnull <- bind_rows(Qnull, tibble(age = ages[i], sim=j, random=Qrandom)) #allsums=Qallsums,
   }
 }
 
-Qnull <- Qnull %>% pivot_longer(3:4, names_to = "model", values_to = "Q")
+#Qnull <- Qnull %>% pivot_longer(3:4, names_to = "model", values_to = "Q")
 
 /*
 saveRDS(Qnull, "./networks/Qnull.rds")
@@ -446,6 +446,7 @@ plot_qz / plot_nz + plot_layout(guides = 'collect')
 
 # _Butterflies ----
 
+# __Binary networks ----
 butterflies <- setdiff(all_mod_edited$name, host_tree$tip.label)
 mod_matrix <- filter(all_mod_edited, name %in% butterflies) %>% 
   frame2webs(c("module","name","age"))
@@ -458,6 +459,18 @@ for(i in 2:length(ages)){
   list_but_pd[[i]] <- bpd
 }
 
+# __Weighted networks ----
+butterflies <- setdiff(all_wmod_edited$name, host_tree$tip.label)
+wmod_matrix <- filter(all_wmod_edited, name %in% butterflies) %>% 
+  frame2webs(c("module","name","age"))
+
+wmod_matrix <- wmod_matrix[rev(names(wmod_matrix))]
+
+list_but_pdw <- list()
+for(i in 2:length(ages)){
+  bpdw <- ses.pd(wmod_matrix[[i]], list_subtreesw[[i]], null.model="taxa.labels") 
+  list_but_pdw[[i]] <- bpdw
+}
 
 # _Plants ----
 
@@ -475,6 +488,7 @@ for(i in 2:length(ages)){
   list_host_pd[[i]] <- ppd
 }
 
+#-- 
 
 mod_pd <- tibble()
 for(i in 2:length(ages)){
@@ -490,6 +504,19 @@ for(i in 2:length(ages)){
   mod_pd <- bind_rows(mod_pd, btbl, ptbl)
 }
 
+wmod_pd <- tibble()
+for(i in 2:length(ages)){
+  age <- ages[i]
+  #ppd <- list_host_pd[[i]]
+  bpd <- list_but_pdw[[i]]
+  
+  btbl <- tibble(age=age, type="butterfly", module=rownames(bpd), 
+                 PDz=bpd$pd.obs.z, PDp=bpd$pd.obs.p, ntaxa=bpd$ntaxa)
+  # ptbl <- tibble(age=age, type="plant", module=rownames(ppd), 
+  #                PDz=ppd$pd.obs.z, PDp=ppd$pd.obs.p, ntaxa=ppd$ntaxa)
+  
+  wmod_pd <- bind_rows(wmod_pd, btbl) #, ptbl)
+}
 
 gpdb <- ggplot(filter(mod_pd, type == "butterfly")) +
   geom_line(aes(age,PDz, group=factor(module, levels = mod_levels), 
@@ -500,7 +527,19 @@ gpdb <- ggplot(filter(mod_pd, type == "butterfly")) +
              size = 2) +
   scale_color_manual(values = custom_pal,na.value = "grey70", drop = F) +
   scale_x_reverse() +
-  labs(title = "Butterflies", color = "Module", x = "Millions of years ago, Ma", y = "PD z-score") +
+  labs(title = "Butterflies - binary networks", color = "Module", x = "Millions of years ago, Ma", y = "PD z-score") +
+  theme_bw()
+
+gpdbw <- ggplot(filter(wmod_pd, type == "butterfly")) +
+  geom_line(aes(age,PDz, group=factor(module, levels = mod_levels), 
+                col=factor(module, levels = mod_levels))) +
+  geom_point(aes(age,PDz, group=factor(module, levels = mod_levels), 
+                 col=factor(module, levels = mod_levels)),
+             data = filter(wmod_pd, PDp <= 0.05, type == "butterfly"),
+             size = 2) +
+  scale_color_manual(values = custom_pal,na.value = "grey70", drop = F) +
+  scale_x_reverse() +
+  labs(title = "Butterflies - weighted networks", color = "Module", x = "Millions of years ago, Ma", y = "PD z-score") +
   theme_bw()
 
 gpdp <- ggplot(filter(mod_pd, type == "plant")) +
@@ -516,7 +555,8 @@ gpdp <- ggplot(filter(mod_pd, type == "plant")) +
   theme_bw()
 
 #+ pd, fig.width = 6.6, fig.height = 5.3, warning = FALSE
-gpdb / gpdp + plot_layout(guides = 'collect')
+#gpdb / gpdp + plot_layout(guides = 'collect')
+gpdb / gpdbw + plot_layout(guides = 'collect')
 
 
 # Number of nodes and modules through time ----
@@ -531,8 +571,22 @@ gnb <- ggplot() +
   scale_color_manual(values = custom_pal,na.value = "grey70", drop = F) +
   #scale_shape_manual(values = c("square","circle")) +
   scale_x_reverse() +
-  labs(color = "Module", x = "Millions of years ago, Ma", y = "Number of butterfly taxa") +
+  labs(title = "Binary networks", color = "Module", x = "Millions of years ago, Ma", y = "Number of butterfly taxa") +
   theme_bw()
+
+gnbw <- ggplot() + 
+  geom_point(data=filter(wmod_pd, type == "butterfly"), 
+             aes(age,ntaxa, col = factor(module, levels = mod_levels)),
+             alpha = 0.7) + 
+  geom_line(data=filter(wmod_pd, type == "butterfly"),
+            aes(age,ntaxa, col = factor(module, levels = mod_levels))) + 
+  #geom_point(data=filter(mod_pd, type == "plant"), aes(age,ntaxa, col = factor(module, levels = mod_levels)), shape = "square") + 
+  scale_color_manual(values = custom_pal,na.value = "grey70", drop = F) +
+  #scale_shape_manual(values = c("square","circle")) +
+  scale_x_reverse() +
+  labs(title = "Weighted networks", color = "Module", x = "Millions of years ago, Ma", y = "Number of butterfly taxa") +
+  theme_bw()
+
             
 gnp <- ggplot() + 
   geom_point(data=filter(mod_pd, type == "plant"), 
@@ -546,9 +600,8 @@ gnp <- ggplot() +
   theme_bw()
 
 #+ nmod, fig.width = 6.6, fig.height = 5.3, warning = FALSE
-gnb / gnp + plot_layout(guides = 'collect')
-
-
+#gnb / gnp + plot_layout(guides = 'collect')
+gnb / gnbw + plot_layout(guides = 'collect')
 
 
 

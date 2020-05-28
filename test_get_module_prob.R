@@ -12,9 +12,10 @@ all_mod_edited <- read.csv("./networks/all_mod_bl1.csv", header = T, stringsAsFa
 
 
 # NOTE: this manually increments various node index values in the history file
-#       may or may not be necessary (check w/ Mari)
-node_idx = c("node_index","parent_index","child1_index","child2_index")
-dat_full[,node_idx] = dat_full[,node_idx] + 1
+#       may or may not be necessary (check w/ Mari) 
+# - not necessary if you get history.bl1.txt from the zip file
+# node_idx = c("node_index","parent_index","child1_index","child2_index")
+# dat_full[,node_idx] = dat_full[,node_idx] + 1
 
 # this file is used to compare values between the new `graphs` object and
 # Mari's pre-computed values
@@ -50,10 +51,10 @@ for (i in 1:n_ages) {
 all_mod_prob = compute_all_module_probs(graphs, all_mod_edited)
 
 # save output
-# saveRDS(all_mod_prob, file="all_mod_prob_bl1_thin50.rds")
+# saveRDS(all_mod_prob, file="networks/all_mod_prob_bl1_thin10.rds")
 
 # load output
-# all_mod_prob = readRDS(file="all_mod_prob.rds")
+# all_mod_prob = readRDS(file="networks/all_mod_prob_bl1_thin10.rds")
 
 
 # The output is a 3-dimensional list; the elements are age x module x pattern;
@@ -78,70 +79,6 @@ all_mod_prob = compute_all_module_probs(graphs, all_mod_edited)
 
 
 
-## Checking M3 at 50Ma - it's not the thinning
 
-## Thin = 0.1
-# print(all_mod_prob[[ "50" ]][[ "M3" ]])
-# $`0`
-# $`0`$count
-# [1] 312
-# 
-# $`0`$graph
-#           Brassicaceae
-# Index_123            0
-# 
-# $`0`$str
-# [1] "0"
-# 
-# $`0`$prob
-# [1] 0.8642659
-# 
-# 
-# $`1`
-# $`1`$count
-# [1] 49
-# 
-# $`1`$graph
-#           Brassicaceae
-# Index_123            1
-# 
-# $`1`$str
-# [1] "1"
-# 
-# $`1`$prob
-# [1] 0.1357341
-
-
-## Thin = 0.5
-
-# > print(all_mod_prob[[ "50" ]][[ "M3" ]])
-# $`0`
-# $`0`$count
-# [1] 1572
-# 
-# $`0`$graph
-#           Brassicaceae
-# Index_123            0
-# 
-# $`0`$str
-# [1] "0"
-# 
-# $`0`$prob
-# [1] 0.8728484
-# 
-# 
-# $`1`
-# $`1`$count
-# [1] 229
-# 
-# $`1`$graph
-#           Brassicaceae
-# Index_123            1
-# 
-# $`1`$str
-# [1] "1"
-# 
-# $`1`$prob
-# [1] 0.1271516
 
 
