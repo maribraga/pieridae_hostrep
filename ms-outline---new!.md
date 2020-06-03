@@ -1,7 +1,7 @@
 New outline for Pieridae host repertoire ms
 ================
 Mari
-18 May, 2020
+03 June, 2020
 
 ## Introduction
 
@@ -177,7 +177,7 @@ Points show values higher than expected (p \< 0.05). The network at 0,
 the present, is binary, that’s why the green line (weighted networks)
 stops at 10Ma, but I can add it. Networks at 80 and 70Ma are too small.
 
-![zscores](./3-Pieridae_networks_files/figure-gfm/zscore-1.png)
+![zscores](./edited_figures/zscoreQ+N.png)
 
 **Figure 5:** This is a preliminary figure. I will probably combine
 parts of the two figures below, but just so you have an idea of it. For
@@ -186,9 +186,8 @@ each weighted and binary network at each time point, I calculated: n.int
 (butterfly) nodes, n.low = number of low-trophic level (plants) nodes,
 i.high = n.int/n.high (mean number of hosts per butterfly).
 
-![net
-size](./3-Pieridae_networks_files/figure-gfm/unnamed-chunk-2-1.png)
-![mod size](./3-Pieridae_networks_files/figure-gfm/nmod-1.png)
+![net size](./edited_figures/net_size_time.png) ![mod
+size](./edited_figures/mod_size_time.png)
 
 #### Figure list
 

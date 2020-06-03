@@ -179,7 +179,7 @@ for(i in 3:length(ages)){
   }
 }
 
-#Qnull <- Qnull %>% pivot_longer(3:4, names_to = "model", values_to = "Q")
+Qnull <- Qnull %>% pivot_longer(3, names_to = "model", values_to = "Q")
 
 /*
 saveRDS(Qnull, "./networks/Qnull.rds")
@@ -208,16 +208,16 @@ Nnull <- tibble()
 for(i in 3:length(ages)){
   
   sim_random <- Nulls_r00[[i]]
-  sim_allsums <- Nulls_r2d[[i]]  
+  #sim_allsums <- Nulls_r2d[[i]]  
   
   for(j in 1:nit){
     Nrandom <- networklevel(sim_random[,,j],index="NODF")
-    Nallsums <- networklevel(sim_allsums[,,j],index="NODF")
-    Nnull <- bind_rows(Nnull, tibble(age = ages[i], sim=j, random=Nrandom, allsums=Nallsums))
+    #Nallsums <- networklevel(sim_allsums[,,j],index="NODF")
+    Nnull <- bind_rows(Nnull, tibble(age = ages[i], sim=j, random=Nrandom)) #, allsums=Nallsums))
   }
 }
 
-Nnull <- Nnull %>% pivot_longer(3:4, names_to = "model", values_to = "N")
+Nnull <- Nnull %>% pivot_longer(3, names_to = "model", values_to = "N")
 
 /*
 saveRDS(Nnull, "./networks/Nnull.rds")
@@ -374,7 +374,8 @@ Qwzscore <- Qwnull %>%
   left_join(Qwnull %>%
               left_join(rename(Qobs, Qobs = Q)) %>%
               group_by(age, model) %>%
-              summarise(p = sum(Q > Qobs)/nit))
+              summarise(p = sum(Q > Qobs)/nit)) %>% 
+  bind_rows(filter(Qzscore, age == 0))
 
 Nwzscore <- Nwnull %>% 
   group_by(age, model) %>% 
@@ -385,7 +386,8 @@ Nwzscore <- Nwnull %>%
   left_join(Nwnull %>% 
               left_join(rename(Nobs, Nobs = nodf)) %>% 
               group_by(age, model) %>% 
-              summarise(p = sum(N > Nobs)/nit))
+              summarise(p = sum(N > Nobs)/nit)) %>% 
+  bind_rows(filter(Nzscore, age == 0))
 
 Qz <- bind_rows(filter(Qzscore, model == 'random') %>% mutate(network = 'high-binary'), 
                 filter(Qwzscore, model == 'random')%>% mutate(network = 'all-weighted'))
@@ -474,6 +476,7 @@ for(i in 2:length(ages)){
 
 # _Plants ----
 
+# __Binary networks ----
 mod_matrix_hosts <- filter(all_mod_edited, name %in% host_tree$tip.label) %>% 
   frame2webs(c("module","name","age"))
 
@@ -486,6 +489,21 @@ for(i in 2:length(ages)){
   host_subtree <- drop.tip(host_tree, out)
   ppd <- ses.pd(mod_matrix_hosts[[i]], host_subtree, null.model="taxa.labels") 
   list_host_pd[[i]] <- ppd
+}
+
+# __Weighted networks ----
+wmod_matrix_hosts <- filter(all_wmod_edited, name %in% host_tree$tip.label) %>% 
+  frame2webs(c("module","name","age"))
+
+wmod_matrix_hosts <- wmod_matrix_hosts[rev(names(wmod_matrix_hosts))]
+
+list_host_pdw <- list()
+for(i in 2:length(ages)){
+  
+  out <- setdiff(host_tree$tip.label,colnames(wmod_matrix_hosts[[i]]))
+  host_subtree <- drop.tip(host_tree, out)
+  ppd <- ses.pd(wmod_matrix_hosts[[i]], host_subtree, null.model="taxa.labels") 
+  list_host_pdw[[i]] <- ppd
 }
 
 #-- 
@@ -507,15 +525,15 @@ for(i in 2:length(ages)){
 wmod_pd <- tibble()
 for(i in 2:length(ages)){
   age <- ages[i]
-  #ppd <- list_host_pd[[i]]
+  ppd <- list_host_pdw[[i]]
   bpd <- list_but_pdw[[i]]
   
   btbl <- tibble(age=age, type="butterfly", module=rownames(bpd), 
                  PDz=bpd$pd.obs.z, PDp=bpd$pd.obs.p, ntaxa=bpd$ntaxa)
-  # ptbl <- tibble(age=age, type="plant", module=rownames(ppd), 
-  #                PDz=ppd$pd.obs.z, PDp=ppd$pd.obs.p, ntaxa=ppd$ntaxa)
+  ptbl <- tibble(age=age, type="plant", module=rownames(ppd), 
+                 PDz=ppd$pd.obs.z, PDp=ppd$pd.obs.p, ntaxa=ppd$ntaxa)
   
-  wmod_pd <- bind_rows(wmod_pd, btbl) #, ptbl)
+  wmod_pd <- bind_rows(wmod_pd, btbl, ptbl)
 }
 
 gpdb <- ggplot(filter(mod_pd, type == "butterfly")) +
@@ -528,31 +546,32 @@ gpdb <- ggplot(filter(mod_pd, type == "butterfly")) +
   scale_color_manual(values = custom_pal,na.value = "grey70", drop = F) +
   scale_x_reverse() +
   labs(title = "Butterflies - binary networks", color = "Module", x = "Millions of years ago, Ma", y = "PD z-score") +
-  theme_bw()
+  theme_bw() 
 
 gpdbw <- ggplot(filter(wmod_pd, type == "butterfly")) +
-  geom_line(aes(age,PDz, group=factor(module, levels = mod_levels), 
+  geom_line(aes(age,PDz, group=factor(module, levels = wmod_levels), 
                 col=factor(module, levels = mod_levels))) +
-  geom_point(aes(age,PDz, group=factor(module, levels = mod_levels), 
+  geom_point(aes(age,PDz, group=factor(module, levels = wmod_levels), 
                  col=factor(module, levels = mod_levels)),
              data = filter(wmod_pd, PDp <= 0.05, type == "butterfly"),
              size = 2) +
   scale_color_manual(values = custom_pal,na.value = "grey70", drop = F) +
   scale_x_reverse() +
   labs(title = "Butterflies - weighted networks", color = "Module", x = "Millions of years ago, Ma", y = "PD z-score") +
-  theme_bw()
+  theme_bw() +
+  theme(legend.position = "none")
 
-gpdp <- ggplot(filter(mod_pd, type == "plant")) +
-  geom_line(aes(age,PDz, group=factor(module, levels = mod_levels), 
-                col=factor(module, levels = mod_levels))) +
-  geom_point(aes(age,PDz, group=factor(module, levels = mod_levels), 
-                 col=factor(module, levels = mod_levels)),
-             data = filter(mod_pd, PDp <= 0.05, type == "plant"),
-             size = 2) +
-  scale_color_manual(values = custom_pal,na.value = "grey70", drop = F) +
-  scale_x_reverse() +
-  labs(title = "Plants", color = "Module", x = "Millions of years ago, Ma", y = "PD z-score") +
-  theme_bw()
+# gpdp <- ggplot(filter(mod_pd, type == "plant")) +
+#   geom_line(aes(age,PDz, group=factor(module, levels = mod_levels), 
+#                 col=factor(module, levels = mod_levels))) +
+#   geom_point(aes(age,PDz, group=factor(module, levels = mod_levels), 
+#                  col=factor(module, levels = mod_levels)),
+#              data = filter(mod_pd, PDp <= 0.05, type == "plant"),
+#              size = 2) +
+#   scale_color_manual(values = custom_pal,na.value = "grey70", drop = F) +
+#   scale_x_reverse() +
+#   labs(title = "Plants", color = "Module", x = "Millions of years ago, Ma", y = "PD z-score") +
+#   theme_bw()
 
 #+ pd, fig.width = 6.6, fig.height = 5.3, warning = FALSE
 #gpdb / gpdp + plot_layout(guides = 'collect')
@@ -571,37 +590,50 @@ gnb <- ggplot() +
   scale_color_manual(values = custom_pal,na.value = "grey70", drop = F) +
   #scale_shape_manual(values = c("square","circle")) +
   scale_x_reverse() +
-  labs(title = "Binary networks", color = "Module", x = "Millions of years ago, Ma", y = "Number of butterfly taxa") +
-  theme_bw()
+  labs(title = "Butterflies - Binary networks", color = "Module", x = "Millions of years ago, Ma", y = "Number of butterfly taxa") +
+  theme_bw() +
+  theme(legend.position = "none")
 
 gnbw <- ggplot() + 
   geom_point(data=filter(wmod_pd, type == "butterfly"), 
-             aes(age,ntaxa, col = factor(module, levels = mod_levels)),
+             aes(age,ntaxa, col = factor(module, levels = wmod_levels)),
              alpha = 0.7) + 
   geom_line(data=filter(wmod_pd, type == "butterfly"),
-            aes(age,ntaxa, col = factor(module, levels = mod_levels))) + 
+            aes(age,ntaxa, col = factor(module, levels = wmod_levels))) + 
   #geom_point(data=filter(mod_pd, type == "plant"), aes(age,ntaxa, col = factor(module, levels = mod_levels)), shape = "square") + 
   scale_color_manual(values = custom_pal,na.value = "grey70", drop = F) +
   #scale_shape_manual(values = c("square","circle")) +
   scale_x_reverse() +
-  labs(title = "Weighted networks", color = "Module", x = "Millions of years ago, Ma", y = "Number of butterfly taxa") +
-  theme_bw()
+  labs(title = "Butterflies - Weighted networks", color = "Module", x = "Millions of years ago, Ma", y = "Number of butterfly taxa") +
+  theme_bw() +
+  theme(legend.position = "none")
 
-            
 gnp <- ggplot() + 
   geom_point(data=filter(mod_pd, type == "plant"), 
-              aes(age,ntaxa, col = factor(module, levels = mod_levels)),
-              alpha = 0.7) + 
+             aes(age,ntaxa, col = factor(module, levels = mod_levels)),
+             alpha = 0.7) + 
   geom_line(data=filter(mod_pd, type == "plant"),
             aes(age,ntaxa, col = factor(module, levels = mod_levels))) + 
   scale_color_manual(values = custom_pal,na.value = "grey70", drop = F) +
   scale_x_reverse() +
-  labs(color = "Module", x = "Millions of years ago, Ma", y = "Number of plant taxa") +
+  labs(title = "Plants - Binary networks", color = "Module", x = "Millions of years ago, Ma", y = "Number of plant taxa") +
+  theme_bw() +
+  theme(legend.position = "none")
+
+gnpw <- ggplot() + 
+  geom_point(data=filter(wmod_pd, type == "plant"), 
+              aes(age,ntaxa, col = factor(module, levels = wmod_levels)),
+              alpha = 0.7) + 
+  geom_line(data=filter(wmod_pd, type == "plant"),
+            aes(age,ntaxa, col = factor(module, levels = wmod_levels))) + 
+  scale_color_manual(values = custom_pal,na.value = "grey70", drop = F) +
+  scale_x_reverse() +
+  labs(title = "Plants - Weighted networks", color = "Module", x = "Millions of years ago, Ma", y = "Number of plant taxa") +
   theme_bw()
 
+
 #+ nmod, fig.width = 6.6, fig.height = 5.3, warning = FALSE
-#gnb / gnp + plot_layout(guides = 'collect')
-gnb / gnbw + plot_layout(guides = 'collect')
+gnb + gnp + gnbw + gnpw + plot_layout(guides = 'collect')
 
 
 
