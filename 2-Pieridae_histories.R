@@ -350,6 +350,8 @@ for(i in 1:length(ages)){
   graph <- list_tgraphs[[i]] %E>% 
     mutate(highpp = case_when(weight >= 0.9 ~ "high",
                               weight < 0.9 ~ "low"))
+  
+  # if you want to use a bipartite layout
   laybip = layout_as_bipartite(graph)
   laybip = laybip[,c(2,1)]
   
@@ -360,7 +362,7 @@ for(i in 1:length(ages)){
     scale_color_manual(values = custom_pal, na.value = "grey70", drop = F) +
     scale_edge_width("Probability", range = c(0.1,1)) +
     scale_edge_color_manual(values = c("grey50","grey80")) +
-    labs(title = paste0(ages[[i]]," Ma"), shape = "", color = "Module") +    # CHANGE
+    labs(title = paste0(ages[[i]]," Ma"), shape = "", color = "Module") + 
     theme_void() +
     theme(legend.position = "none")
   
@@ -542,6 +544,80 @@ for(i in 1:(length(ages)-1)){
 list_subtreesw[[9]] <- tree
 list_tip_dataw[[9]] <- tibble(label = tree$tip.label) %>% 
   inner_join(filter(all_wmod_edited, age == 0), by = c("label" = "name"))
+
+
+/*# __Plot ggtree and ggraph  with weighted modules ----
+*/
+  
+#+ eval = FALSE
+  
+# Choose colors and sizes
+wmod_levels <- c(paste0('M',1:12),paste0('T',1:3))
+custom_palw <- c("#b4356c","#1b1581","#e34c5b","#fca33a","#fbeba9","#fdc486",
+                 "#802b72","#f8c4cc","#c8d9ee","#82a0be","#00a2bf","#006e82",
+                 "grey30","grey60","grey90")
+tip_size = c(3,3,3,2.5,2.5,2,2,2,2)
+node_size = c(4,4,3,3,3,3,3,3,3)
+
+for(i in 1:length(ages)){
+  
+  subtree <- list_subtreesw[[i]]
+  ggt <- ggtree(subtree, ladderize = F) %<+% list_tip_dataw[[i]] +
+    geom_tippoint(aes(color = factor(module, levels = wmod_levels)), size = tip_size[i]) + 
+    geom_rootedge(rootedge = 1) +
+    scale_color_manual(values = custom_palw, na.value = "grey70", drop = F) +
+    xlim(c(0,tree$root.time)) +
+    theme_tree2() +
+    theme(legend.position = "none")
+  
+  assign(paste0("ggtw_",ages[[i]]), ggt)
+  
+  graph <- list_wtgraphs[[i]]
+  
+  ggn <- ggraph(graph, layout = 'stress') +
+    geom_edge_link(aes(width = weight), color = "grey50") + 
+    geom_node_point(aes(shape = type, color = factor(module, levels = wmod_levels)), size = node_size[i]) +
+    scale_shape_manual(values = c("square","circle")) +
+    scale_color_manual(values = custom_palw, na.value = "grey70", drop = F) +
+    scale_edge_width("Probability", range = c(0.1,1)) +
+    labs(title = paste0(ages[[i]]," Ma"), shape = "", color = "Module") + 
+    theme_void() +
+    theme(legend.position = "none")
+  
+  assign(paste0("ggnw_",ages[[i]]), ggn)
+}
+
+# define layout
+design <- c(patchwork::area(1, 1, 1, 1),
+            patchwork::area(1, 2, 1, 2),
+            patchwork::area(3, 1, 3, 1),
+            patchwork::area(3, 2, 3, 2),
+            patchwork::area(6, 1, 7, 1),
+            patchwork::area(6, 2, 7, 2),
+            patchwork::area(10,1,12, 1),
+            patchwork::area(10,2,12, 3),
+            patchwork::area(1, 4, 3, 4),
+            patchwork::area(1, 5, 3, 6),
+            patchwork::area(4, 4, 7, 4),
+            patchwork::area(4, 5, 7, 6),
+            patchwork::area(8, 4,12, 4),
+            patchwork::area(8, 5,12, 6),
+            patchwork::area(1, 8, 6, 8),
+            patchwork::area(1, 9, 6,11),
+            patchwork::area(7, 8,12, 8),
+            patchwork::area(7, 9,12,12))
+
+# plot!
+ggtw_80 + ggnw_80 +
+  ggtw_70 + ggnw_70 +
+  ggtw_60 + ggnw_60 +
+  ggtw_50 + ggnw_50 +
+  ggtw_40 + ggnw_40 +
+  ggtw_30 + ggnw_30 +
+  ggtw_20 + ggnw_20 +
+  ggtw_10 + ggnw_10 +
+  ggtw_0 + ggnw_0 +
+  plot_layout(design = design)
 
 
 

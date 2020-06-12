@@ -190,7 +190,7 @@ saveRDS(Qnull, "./networks/Qnull.rds")
 Qnull <- readRDS("./networks/Qnull.rds")
 
     
-# observed
+# observed modularity for binary networks
 Qobs <- tibble()
 
 for(i in 3:length(ages)){
@@ -228,7 +228,7 @@ saveRDS(Nnull, "./networks/Nnull.rds")
 Nnull <- readRDS("./networks/Nnull.rds")
 
 
-# observed
+# observed nestedness for binary networks
 Nobs <- tibble()
 
 for(i in 3:length(ages)){
@@ -328,6 +328,14 @@ saveRDS(Qwnull, "./networks/Qwnull.rds")
 # Modularity of weighted null networks 
 Qwnull <- readRDS("./networks/Qwnull.rds")
 
+# observed
+Qwobs <- tibble()
+
+for(i in 1:(length(ages)-1)){
+  q <- get(paste0("wmod_",ages[i]))
+  Qwobs<- bind_rows(Qwobs, tibble(age = ages[i], Q = q@likelihood))
+}
+
 
 /*# _Nestedness ----
 */
@@ -358,6 +366,13 @@ saveRDS(Nwnull, "./networks/Nwnull.rds")
 # Nestedness of weighted null networks
 Nwnull <- readRDS("./networks/Nwnull.rds")
 
+# observed
+Nwobs <- tibble()
+
+for(i in 1:(length(ages)-1)){
+  wnodf <- networklevel(list_wnets[[i]],index="weighted NODF")
+  Nwobs<- bind_rows(Nwobs, tibble(age = ages[i], nodf = wnodf))
+}
 
     
 /*# _Z-scores ----
@@ -369,10 +384,10 @@ Qwzscore <- Qwnull %>%
   group_by(age, model) %>%
   summarize(mean = mean(Q),
             sd = sd(Q)) %>%
-  left_join(Qobs) %>%
+  left_join(Qwobs) %>%
   mutate(z = (Q - mean)/sd) %>%
   left_join(Qwnull %>%
-              left_join(rename(Qobs, Qobs = Q)) %>%
+              left_join(rename(Qwobs, Qobs = Q)) %>%
               group_by(age, model) %>%
               summarise(p = sum(Q > Qobs)/nit)) %>% 
   bind_rows(filter(Qzscore, age == 0))
@@ -381,19 +396,19 @@ Nwzscore <- Nwnull %>%
   group_by(age, model) %>% 
   summarize(mean = mean(N),
             sd = sd(N)) %>% 
-  left_join(Nobs) %>% 
+  left_join(Nwobs) %>% 
   mutate(z = (nodf - mean)/sd) %>% 
   left_join(Nwnull %>% 
-              left_join(rename(Nobs, Nobs = nodf)) %>% 
+              left_join(rename(Nwobs, Nobs = nodf)) %>% 
               group_by(age, model) %>% 
               summarise(p = sum(N > Nobs)/nit)) %>% 
   bind_rows(filter(Nzscore, age == 0))
 
-Qz <- bind_rows(filter(Qzscore, model == 'random') %>% mutate(network = 'high-binary'), 
-                filter(Qwzscore, model == 'random')%>% mutate(network = 'all-weighted'))
+Qz <- bind_rows(filter(Qzscore, model == 'random') %>% mutate(network = 'binary'), 
+                filter(Qwzscore, model == 'random')%>% mutate(network = 'weighted'))
 
-Nz <- bind_rows(filter(Nzscore, model == 'random') %>% mutate(network = 'high-binary'), 
-                filter(Nwzscore, model == 'random')%>% mutate(network = 'all-weighted'))
+Nz <- bind_rows(filter(Nzscore, model == 'random') %>% mutate(network = 'binary'), 
+                filter(Nwzscore, model == 'random')%>% mutate(network = 'weighted'))
 
 plot_qz <- ggplot(Qz) +
   geom_line(aes(age, z, group = network, col = network)) +
@@ -642,6 +657,7 @@ gnb + gnp + gnbw + gnpw + plot_layout(guides = 'collect')
   
 # _Density plots ----
 
+# Binary networks
 # modularity
 for(g in ages[3:9]){
   
@@ -681,6 +697,47 @@ for(g in ages[3:9]){
     nodf_plot_0 / mod_plot_0) +
   plot_layout(guides = 'collect')
 
+
+# Weighted networks
+# modularity
+for(g in ages[1:8]){
+  
+  gg <- ggplot(filter(Qwnull, age == g)) +
+    geom_density(aes(Q, group = model, color = model)) +
+    scale_color_grey() +
+    geom_vline(xintercept = filter(Qwobs, age == g)$Q, col = "blue") +
+    labs(title = paste0(g," Ma"), y = NULL) +
+    theme_bw() + 
+    theme(axis.ticks.y = element_line(linetype = "blank"), 
+          axis.text.y = element_blank())
+  
+  assign(paste0("wmod_plot_",g), gg)
+}
+
+# nestedness
+for(g in ages[1:8]){
+  gg <- ggplot(filter(Nwnull, age == g)) +
+    geom_density(aes(N, group = model, color = model)) +
+    scale_color_grey() +
+    geom_vline(xintercept = filter(Nwobs, age == g)$nodf, col = "blue") +
+    labs(title = paste0(g," Ma"), y = NULL) +
+    theme_bw() + 
+    theme(axis.ticks.y = element_line(linetype = "blank"), 
+          axis.text.y = element_blank())
+  
+  assign(paste0("wnodf_plot_",g), gg)
+}
+
+#+ z_dens, fig.width = 11, fig.height = 3
+(wnodf_plot_80 / wmod_plot_80 |
+    wnodf_plot_70 / wmod_plot_70 |
+    wnodf_plot_60 / wmod_plot_60 |
+    wnodf_plot_50 / wmod_plot_50 |
+    wnodf_plot_40 / wmod_plot_40 |
+    wnodf_plot_30 / wmod_plot_30 |
+    wnodf_plot_20 / wmod_plot_20 |
+    wnodf_plot_10 / wmod_plot_10) +
+  plot_layout(guides = 'collect')
 
 
 
