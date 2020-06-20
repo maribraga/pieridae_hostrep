@@ -179,7 +179,7 @@ compute_all_module_probs = function(graphs, modules) {
                 m_row_names = intersect( m$name, g_row_names )
                 m_col_names = intersect( m$name, g_col_names )
                 
-                # get posterior sample of graph for iteartion it at age i
+                # get posterior sample of graph for iteration it at age i
                 g_it = graphs[[i]][it,,]
                 
                 # now, extract the subgraph for module m for iteration it at age i
@@ -229,6 +229,127 @@ compute_all_module_probs = function(graphs, modules) {
 
     return(mod_prob_list)
 }
+
+
+compute_all_module_probs_more = function(graphs, modules, tol=0, tol_row=0, tol_col=0) {
+    
+    # initialize the module-age-prob list
+    mod_prob_list = list()
+    
+    # initialize and re-order age vector
+    ages = as.character(rev(sort(unique(modules$age))))
+    n_ages = length(ages)
+    
+    # get the full set of row (insect) and column (plant) names
+    g_row_names = rownames(graphs[[1]][1,,])
+    g_col_names = colnames(graphs[[1]][1,,])
+    
+    # compute for each age
+    for (i in 1:n_ages) {
+        
+        # initialize the module probs for this age
+        mod_prob_list[[ ages[i] ]] = list()
+
+        # get the list of modules for each age
+        modules_for_age = modules[ modules$age == ages[i], ]
+        module_names_for_age = sort(unique( modules_for_age$module ))
+
+        # get the number of iterations
+        n_it = dim(graphs[[i]])[1]
+
+        # process each each module m at age i
+        for (m_idx in 1:length(module_names_for_age))
+        {
+            # get the module name
+            m_name = module_names_for_age[m_idx]
+            
+            # extract the module of interest from the module dataframe
+            m = modules_for_age[ modules_for_age$module == m_name, ]
+
+            # initialize info for a particular module+age
+            mod_prob_list[[ ages[i] ]][[ m_name ]] = list()
+
+            # find num. matches across iterations for the module at age i
+            for (it in 1:n_it)
+            {
+                
+                # get the reduced set of names for m (the module-age pair)
+                m_row_names = intersect( m$name, g_row_names )
+                m_col_names = intersect( m$name, g_col_names )
+                
+                # get posterior sample of graph for iteration it at age i
+                g_it = graphs[[i]][it,,]
+                
+                # now, extract the subgraph for module m for iteration it at age i
+                m_it = matrix(g_it[ m_row_names, m_col_names],
+                              nrow=length(m_row_names),
+                              ncol=length(m_col_names))
+                rownames(m_it)=m_row_names
+                colnames(m_it)=m_col_names
+                
+                # make module w/ for module row-set with expanded cols
+                m_it_row = matrix(g_it[ m_row_names, ],
+                              nrow=length(m_row_names),
+                              ncol=length(g_col_names))
+                rownames(m_it_row)=m_row_names
+                colnames(m_it_row)=g_col_names
+                m_it_row[ m_row_names, m_col_names ] = m_it_row[ m_row_names, m_col_names ] - m_it[ m_row_names, m_col_names ]
+                n_row_excess = sum(m_it_row)
+                
+                
+                # make module w/ for module col-set with expanded rows
+                m_it_col = matrix(g_it[ m_row_names, ],
+                              nrow=length(g_row_names),
+                              ncol=length(m_col_names))
+                rownames(m_it_col)=g_row_names
+                colnames(m_it_col)=m_col_names
+                m_it_col[ m_row_names, m_col_names ] = m_it_col[ m_row_names, m_col_names ] - m_it[ m_row_names, m_col_names ]
+                n_col_excess = sum(m_it_col)
+                
+                # what is total excess among row/col relationships?
+                n_excess = n_row_excess + n_col_excess
+                
+                # because the row and col names are constant, each m_it will have
+                # the same dimensions; this is useful, because it means we can
+                # then convert m_it into a string representation, and use that
+                # string to identify unique subgraph structures among m_it
+                
+                # so, first, let's create our string representation of m_it
+                m_it_flat = as.character(c(m_it))
+                s_it_flat = paste( m_it_flat, collapse="" )
+                
+                # then we create a new record for the subgraph for
+                # m_it if no such previous subgraph has been previously recorded
+                subgraph_exists = is.null( mod_prob_list[[ ages[i] ]][[ m_name ]][[ s_it_flat ]] )
+                
+                # ... create new record if needed!
+                if (subgraph_exists) {
+                    mod_prob_list[[ ages[i] ]][[ m_name ]][[ s_it_flat ]] = list()
+                    mod_prob_list[[ ages[i] ]][[ m_name ]][[ s_it_flat ]]$count = 0
+                    mod_prob_list[[ ages[i] ]][[ m_name ]][[ s_it_flat ]]$graph = m_it
+                    mod_prob_list[[ ages[i] ]][[ m_name ]][[ s_it_flat ]]$str = s_it_flat
+                }
+                
+                # increment the count for the subgraph pattern
+                m_it_count = mod_prob_list[[ ages[i] ]][[ m_name ]][[ s_it_flat ]]$count
+                mod_prob_list[[ ages[i] ]][[ m_name ]][[ s_it_flat ]]$count = m_it_count + 1
+            }
+            
+            
+            # revisit each module
+            for (k in 1:length(mod_prob_list[[ ages[i] ]][[ m_name ]])) {
+                
+                # now compute the probability of the module subgraph pattern
+                m_it_prob = mod_prob_list[[ ages[i] ]][[ m_name ]][[ k ]]$count / n_it
+                mod_prob_list[[ ages[i] ]][[ m_name ]][[ k ]]$prob = m_it_prob
+            }
+            
+        }
+    }
+
+    return(mod_prob_list)
+}
+
 
 
 # make matrix with marginal posterior probabilities of interactions at internal nodes
@@ -403,3 +524,45 @@ make_matrix_nodes = function(dat, nodes, state) {
 #     }
 #     return(n_match/n_it)
 # }
+
+
+get_match_prob = function(x, p=0.9) {
+  frac = p
+  ret = x
+  for (i in 1:length(x)) {
+    for (j in 1:length(x[[i]])) {
+      # get subgraph w/ highest prob
+      prob = 0
+      idx = 0
+      for (k in 1:length(x[[i]][[j]])) {
+        g = x[[i]][[j]][[k]]
+        if (g$prob > prob) {
+          prob = g$prob
+          idx = k
+        }
+      }
+      gmax = x[[i]][[j]][[idx]]
+      #print(gmax)
+      n_int = length(gmax$graph)
+      ret[[i]][[j]] = gmax
+      ret[[i]][[j]]$prob = 0
+      ret[[i]][[j]]$graph = list()
+      kk = 1
+      for (k in 1:length(x[[i]][[j]])) {
+        gk = x[[i]][[j]][[k]]
+        diff = gmax$graph - gk$graph
+        count_small = sum(diff[ diff < 0 ])
+        count_large = sum(diff[ diff > 0 ])
+        gk_frac  = 1.0 - ((count_small + count_large) / n_int)
+        if (gk_frac >= frac) {
+          ret[[i]][[j]]$prob = ret[[i]][[j]]$prob + gk$prob
+          ret[[i]][[j]]$graph[[kk]] = gk$graph
+          kk = kk + 1
+          #print(gk$graph)
+        }
+      }
+    }
+  }
+  return(ret)
+}
+ 

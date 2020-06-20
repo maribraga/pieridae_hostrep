@@ -2,11 +2,12 @@ source("functions_ancestral_states.R")
 
 library(dplyr)
 library(ape)
+library(data.table)
 
 col_classes <- c(rep("numeric",7),"character","character","numeric","character",rep("numeric",3))
 dat_full = read.table( file="./inference/history.bl1.txt", sep="\t", header=T, colClasses=col_classes)
 tree <- read.tree("./data/bphy_pie_ladder.phy")
-host_tree <- read.tree("./data/angio_pie_50tips_ladder.phy")
+host_tree <- read.tree("./data/angio_pie_50tips_bl1.phy")
 # make sure to get history and modules for the same analysis (bl1 or time)
 all_mod_edited <- read.csv("./networks/all_mod_bl1.csv", header = T, stringsAsFactors = F)
 
@@ -47,8 +48,32 @@ for (i in 1:n_ages) {
 # g_check[row_idx,col_idx]
 # list_m_at_ages[[1]][row_idx,col_idx]
 
-# get all subgraphs (and probs) for module
+# Get all subgraphs (and probs) for module
 all_mod_prob = compute_all_module_probs(graphs, all_mod_edited)
+
+# Get the probability for all subgraph patterns for a module that share
+# a percent of edges (p) that exactly match the most probable module, which is
+# assumed to be the pre-computed module in `all_mod_edited'. We call this
+# the 'soft-match' posterior probability.
+#
+# For example, suppose we wanted to compute the soft-match posterior probability
+# for the module
+#       Y Z
+#     A 0 1
+#     B 1 1
+#     C 1 1
+#     D 1 0
+#
+# We can encode this as G1 = (AZ, BY, BZ, CY, CZ, DY), i.e. a subgraph with 8
+# potential interactions. Now suppose G1 has posterior probability 0.6. If we
+# set p=100, then the only posterior samples with an exact match for the 6 edges
+# and 2 non-edges will be included in our 'soft-match' metric. Now suppose
+# G2 = (AZ, BY, BZ, CY, DY) has pp=0.3 and G3 = (AZ, BY, CY, DY) has pp=0.1.
+# If we set p=75 for the soft-match then 75% of the interactions exactly match
+# G1, so the soft-match-75 to G1 woudl be pp_G1 + pp_G2 = 0.9.
+
+all_mod_prob_90 = get_match_prob(all_mod_prob, p=0.9)
+
 
 # save output
 # saveRDS(all_mod_prob, file="networks/all_mod_prob_bl1_thin10.rds")
