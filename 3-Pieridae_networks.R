@@ -187,7 +187,7 @@ saveRDS(Qnull, "./networks/Qnull.rds")
 
 #+
 # Modularity of binary null networks  
-Qnull <- readRDS("./networks/Qnull.rds")
+Qnull <- readRDS("./networks/Qbnull.rds")
 
     
 # observed modularity for binary networks
@@ -220,12 +220,12 @@ for(i in 3:length(ages)){
 Nnull <- Nnull %>% pivot_longer(3, names_to = "model", values_to = "N")
 
 /*
-saveRDS(Nnull, "./networks/Nnull.rds")
+saveRDS(Nnull, "./networks/Nbnull.rds")
 */
   
 #+ 
 # Nestedness of binary null networks
-Nnull <- readRDS("./networks/Nnull.rds")
+Nbnull <- readRDS("./networks/Nbnull.rds")
 
 
 # observed nestedness for binary networks
@@ -241,7 +241,7 @@ for(i in 3:length(ages)){
 */
 #' ### Z-scores
   
-Qzscore <- Qnull %>% 
+Qbzscore <- Qnull %>% 
   group_by(age, model) %>% 
   summarize(mean = mean(Q),
             sd = sd(Q)) %>% 
@@ -253,7 +253,7 @@ Qzscore <- Qnull %>%
               summarise(p = sum(Q > Qobs)/nit))
 
 
-Nzscore <- Nnull %>% 
+Nbzscore <- Nnull %>% 
   group_by(age, model) %>% 
   summarize(mean = mean(N),
             sd = sd(N)) %>% 
@@ -403,6 +403,8 @@ Nwzscore <- Nwnull %>%
               group_by(age, model) %>% 
               summarise(p = sum(N > Nobs)/nit)) %>% 
   bind_rows(filter(Nzscore, age == 0))
+
+
 
 Qz <- bind_rows(filter(Qzscore, model == 'random') %>% mutate(network = 'binary'), 
                 filter(Qwzscore, model == 'random')%>% mutate(network = 'weighted'))
