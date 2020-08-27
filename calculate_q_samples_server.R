@@ -19,6 +19,7 @@ for(i in 1:nsamp){
   sim <- get(Nulls_age)[[i]]
 
   for(j in 1:nnull){
+    set.seed(2)         ### forgot to add this before
     Qrandom <- mycomputeModules(sim[,,j])@likelihood
     Qnull <- bind_rows(Qnull, tibble(age = ages[a], sample=i, sim=j, Qrandom=Qrandom))
   }

@@ -18,8 +18,8 @@ library(tidyverse)
 library(patchwork)
 library(viridis)
 library(bipartite)
-library(ggraph)
-library(tidygraph)
+#library(ggraph)
+#library(tidygraph)
 #library(igraph)
 
 
@@ -50,6 +50,78 @@ for (i in 1:(length(ages)-1)) {
   samples_ages[[i]] = make_matrix_samples_at_age( history, age, s_hit=c(2), tree, host_tree )
 }
 
+
+/*# Structure of sampled networks ----
+*/
+  
+#' ### Structure of sampled networks
+#' 
+
+/*# _Modularity ----
+*/
+
+#+ eval = FALSE
+
+source("my_compute_module.R")
+
+# Calculate Q for observed networks (samples) AND save modules
+
+Qsamples <- tibble()
+Mod_samples <- tibble()
+
+for(a in 1:(length(ages)-1)){
+  for(i in 1:nsamp){
+    net <- samples_ages[[a]][i,,]
+    set.seed(2)                    ### remember to check if we set seed every time
+    mod <- mycomputeModules(net)
+    
+    q <- mod@likelihood
+    Qsamples <- bind_rows(Qsamples, tibble(age = ages[a], sample = i, Q=q))
+    
+    mod_list <- listModuleInformation(mod)[[2]]
+    nmod <- length(mod_list)
+    for(m in 1:nmod){
+      members <- unlist(mod_list[[m]])
+      mtbl <- tibble(name = members, 
+                     age = rep(ages[a], length(members)),
+                     sample = rep(i, length(members)),
+                     original_module = rep(m, length(members)))
+      
+      Mod_samples <- bind_rows(Mod_samples, mtbl)
+    }
+  }
+}
+
+#saveRDS(Qsamples, "./networks/Qsamples.rds")
+#saveRDS(Mod_samples, "./networks/Mod_samples.rds")
+
+Qsamples <- readRDS("./networks/Qsamples.rds")        # tibble with Q values
+Mod_samples <- readRDS("./networks/Mod_samples.rds")  # tibble with module information
+
+
+
+/*# _Nestedness ----
+*/
+
+# Calculate NODF for observed networks (samples)
+
+Nsamples <- tibble()
+
+for(a in 1:(length(ages)-1)){
+  for(i in 1:nsamp){
+    net <- samples_ages[[a]][i,,]
+    nodf <- networklevel(net, index="NODF")
+    Nsamples <- bind_rows(Nsamples, tibble(age = ages[a], sample = i, N=nodf))
+  }
+}
+
+#saveRDS(Nsamples, "./networks/Nsamples.rds")
+
+Nsamples <- readRDS("./networks/Nsamples.rds")
+
+
+
+
 /*# Null models ----
 */
   
@@ -75,18 +147,16 @@ for(i in 1:nsamp){
 }  
 
 
-
 #' ### Nestedness and Modularity
 #' 
 #' Let's calculate the nestedness and modularity of each null network, per age
 #' 
-
   
 /*# _Nestedness ----
 */
 
 #+ eval = FALSE
-# run in the server
+
 Nnull <- tibble()
 for(a in 1:(length(ages)-1)){
   
@@ -108,24 +178,12 @@ for(a in 1:(length(ages)-1)){
 
 Nnull <- readRDS("./networks/Nnull_samples.rds")
 
-# Calculate NODF for observed networks (samples)
-
-Nsamples <- tibble()
-
-for(a in 1:(length(ages)-1)){
-  for(i in 1:nsamp){
-    net <- samples_ages[[a]][i,,]
-    nodf <- networklevel(net, index="NODF")
-    Nsamples <- bind_rows(Nsamples, tibble(age = ages[a], sample = i, N=nodf))
-  }
-}
 
 
 /*# _Modularity ----
 */
-  
+
 #+ eval = FALSE
-# run in the server (all at once, or per age)
 
 source("my_compute_module.R")
 
@@ -162,18 +220,6 @@ Qnull_10 <- readRDS("./networks/Qnull_samples_10.rds")
 Qnull <- bind_rows(Qnull_80,Qnull_70,Qnull_60,Qnull_50,
                    Qnull_40,Qnull_30,Qnull_20,Qnull_10)
 
-
-# Calculate Q for observed networks (samples)
-
-Qsamples <- tibble()
-
-for(a in 1:(length(ages)-1)){
-  for(i in 1:nsamp){
-    net <- samples_ages[[a]][i,,]
-    q <- mycomputeModules(net)@likelihood
-    Qsamples <- bind_rows(Qsamples, tibble(age = ages[a], sample = i, Q=q))
-  }
-}
 
 
 /*# _Z-scores ----
@@ -374,5 +420,29 @@ ppQ <- Qzscore %>%
 
 plot(ppN)
 plot(ppQ)
+
+# > ppN
+# # A tibble: 8 x 2
+#     age    pp
+#   <dbl> <dbl>
+# 1    10 1    
+# 2    20 1    
+# 3    30 0.95 
+# 4    40 0.580
+# 5    50 0.13 
+# 6    60 0.06 
+# 7    70 0.03 
+# 8    80 0.01 
+# > ppQ
+# # A tibble: 7 x 2
+#     age    pp
+#   <dbl> <dbl>
+# 1    10  0.99
+# 2    20  0.95
+# 3    30  0.96
+# 4    40  0.32
+# 5    50  0.26
+# 6    60  0.15
+# 7    70  0.03
 
 
