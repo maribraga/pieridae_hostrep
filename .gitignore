@@ -7,5 +7,5 @@
 /inference/history.time.txt
 /inference/history.bl1.txt
 /inference/char_hist.RData
-/edited_figures
-/sandbox
+/edited_figures/
+/sandbox/
