@@ -35,10 +35,10 @@ chain4 <- read.table("./inference/out.2.bl1.pieridae.2s.log", header = TRUE)[,c(
 colnames(chain1) <- colnames(chain2) <- colnames(chain3) <- colnames(chain4) <- 
   c("generation","clock","beta", "lambda[02]", "lambda[20]")
 
-postt <- filter(chain1, generation >= 20000 & generation <= 200000)
-postt2 <- filter(chain2, generation >= 20000 & generation <= 200000)
-postb <- filter(chain3, generation >= 20000 & generation <= 200000)
-postb2 <- filter(chain4, generation >= 20000 & generation <= 200000)
+postt <- filter(chain1, generation >= 20000)
+postt2 <- filter(chain2, generation >= 20000)
+postb <- filter(chain3, generation >= 20000)
+postb2 <- filter(chain4, generation >= 20000)
 
 #' - *Convergence*
 #' 
@@ -67,9 +67,10 @@ means
 
 /*# _Density ----
 */
-  
-/* # slow chunk. Read RDS file below
-# prior distributions  
+
+#+ eval = FALSE    
+# slow chunk! Read RDS file below
+# calculate prior distributions  
 nrow = 1e6
 
 priors <- tibble(
@@ -77,21 +78,15 @@ priors <- tibble(
   clock = rexp(nrow, rate = 10),
   beta = rexp(nrow, rate = 1),
   lambda = rdirichlet(nrow,c(1,1))[,1],
-  #lambda10 = lambdas[,2],
   tree = rep("prior", nrow)
 )
 
 kd_beta <- kdensity(x = priors$beta[1:5000], kernel='gamma', support=c(0,Inf), bw = 0.05)
 kd_clock <- kdensity(x = priors$clock[1:5000], kernel='gamma', support=c(0,Inf), bw = 0.01)
 kd_lambda <- kdensity(x = priors$lambda, kernel='gamma', support=c(0,Inf), bw = 0.01)
-#kd_lambda10 <- kdensity(x = priors$lambda10, kernel='gamma', support=c(0,Inf), bw = 0.01)
 
 x10 = seq(0,10,0.002)
 x1 = seq(0,1,0.0002)
-
-# plot(x10, kd_beta(x10))
-# plot(x1, kd_clock(x1))
-# plot(x1, kd_lambda(x1))
 
 
 plot_priors <- tibble(
@@ -99,9 +94,9 @@ plot_priors <- tibble(
   x = c(x10, x1, x1),
   y = c(kd_beta(x10), kd_clock(x1), kd_lambda(x1))
 ) 
-*/
 
-# prior distributions  
+#+ 
+# fast solution: read prior distributions from file
 plot_priors <- readRDS("./inference/priors.rds")
 
 all_post <- mutate(posterior, beta = case_when(is.na(beta) ~ 0, TRUE ~ beta),
