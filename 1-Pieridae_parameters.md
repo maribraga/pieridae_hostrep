@@ -5,9 +5,9 @@ Mariana Braga
 
 ------------------------------------------------------------------------
 
-Script 1 for empirical study performed in Braga et al. 2020 *Evolution
-of butterfly-plant networks revealed by Bayesian inference of host
-repertoire*.
+Script 1 for analyses performed in Braga et al. 2021 *Evolution of
+butterfly-plant networks over time, as revealed by Bayesian inference of
+host repertoire*.
 
 ### Parameter Estimates
 
