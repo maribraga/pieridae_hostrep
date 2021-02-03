@@ -434,11 +434,13 @@ originally, I was not. Something changed either in `ggtree` or in
 `dispRity` and now the tree is not plotted correctly when we set
 ladderize = FALSE. Also, the networks have been edited outside R for the
 figure in the paper. In any case, the information contained in the
-figure is the same. \#\#\#\# Other plots in Figure 2
+figure is the same.
+
+#### Other plots in Figure 2
 
 Now that we have found the modules for the extant network, we can
-produce other plots to combine with extant butterfly tree and ancestral
-states at nodes
+produce other plots to combine with the extant butterfly tree and
+ancestral states at nodes
 
 ``` r
 edge_list <- get.data.frame(list_wtgraphs50[[9]], what = "edges") %>%
