@@ -242,8 +242,8 @@ weighted_net_50 <- get_incidence_matrix_at_ages(pp_at_ages, pt = 0.5, weighted =
 binary_net_90 <- get_incidence_matrix_at_ages(pp_at_ages, pt = 0.9, weighted = FALSE)
 
 #' Now we can identify the modules in each of the three summary networks at each age
-#' and plot them. Here, I'll go through all the steps with the `weighted_net_50` network
-#' and point out when something needs to be changed when analyzing a binary network.
+#' and plot them. Here, I'll go through all the steps with the `weighted_net_50` network.
+#' You can repeat the same steps for the other networks.
 #' 
 
 /*# __Calculate modularity with bipartite (STOCHASTIC STEP!)----

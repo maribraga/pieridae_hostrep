@@ -1,2 +1,0 @@
-File	N.modules	Modularity	P.Null1	P.Null2
-incidence_pieridae.txt	10	0.655680	0.000000	0.000000
