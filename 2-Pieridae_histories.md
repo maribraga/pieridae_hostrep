@@ -1,21 +1,37 @@
 Pieridae host repertoire - Character history
 ================
 Mariana Braga
-13 May, 2020
+03 February, 2021
 
------
+------------------------------------------------------------------------
 
-Script 2 for empirical study performed in Braga et al. 2020 *Evolution
-of butterfly-plant networks revealed by Bayesian inference of host
-repertoire*.
+Script 2 for analyzes performed in Braga et al. 2021 *Evolution of
+butterfly-plant networks over time, as revealed by Bayesian inference of
+host repertoire*.
 
-## Packages
+## Set up
 
-To begin, we need to load the necessary R packages
+For this script we’ll need a package to analyze the output posterior
+distribution for character history. You can install it from GitHub:
 
 ``` r
-library(dplyr)
+# install.packages("devtools")
+devtools::install_github("maribraga/evolnets")
+```
+
+We also need other packages
+
+``` r
+library(evolnets)
 library(ape)
+library(dispRity)
+library(ggtree)
+library(tidyverse)
+library(patchwork)
+library(ggraph)
+library(tidygraph)
+library(igraph)
+library(bipartite)
 ```
 
 ## Data
@@ -27,7 +43,7 @@ are not hosts to any butterfly.
 **Trees**
 
 ``` r
-tree <- read.tree("./data/bphy_pie_ladder.phy")
+tree <- read.tree("./data/tree_nodelab.tre")
 host_tree <- read.tree("./data/angio_pie_50tips_ladder.phy")
 ```
 
@@ -54,327 +70,325 @@ These files can get quite big, so I compressed them to upload on Github.
 You’ll have to unzip them first in your computer to use them. Also, you
 might want to thin out these files to speed up their parsing. In the
 original files, there is one sample every 50 generations. If you
-increase this interval, you reduce the number of samples. This is how
-you can do it.
+increase this interval, you reduce the number of samples.
 
-*(Note that in the analyses in the paper we did not thin the histories,
-so we’ll show results with all sampled histories)*
-
-``` r
-colclasses <- c(rep("numeric",7),"character","character","numeric","character",rep("numeric",3))
-```
+We’ll use *evolnets* function `read_history()` to read one file with
+sampled histories when using the time-calibrated host tree, and one
+using the transformed host tree (all branch lengths = 1).
 
 ``` r
-history_dat_time = read.table("./inference/out.2.real.pieridae.2s.history.txt", sep="\t", header=T, colClasses = colclasses)
- 
-# define burnin and sampling interval (I'll keep the original interval) 
-it_seq <- seq(20000,200000, 50)  
+history_time <- read_history('./inference/out.2.real.pieridae.2s.history.txt')
+history_bl1 <- read_history('./inference/out.3.bl1.pieridae.2s.history.txt')
 
-# Time-calibrated tree
-history_dat_time <- filter(history_dat_time, iteration %in% it_seq) %>% 
-  mutate(node_index = node_index + 1,
-         parent_index = parent_index + 1,
-         child1_index = child1_index + 1,
-         child2_index = child2_index + 1)
-
-write.table(history_dat_time,"./inference/history.time.txt", sep="\t", quote = F, row.names = F)
-
-# Tree with branch lengths = 1
-history_dat_bl1 = read.table("./inference/out.3.bl1.pieridae.2s.history.txt", sep="\t", header=T, colClasses = colclasses)
-
-history_dat_bl1 <- filter(history_dat_bl1, iteration %in% it_seq) %>% 
-  mutate(node_index = node_index + 1,
-         parent_index = parent_index + 1,
-         child1_index = child1_index + 1,
-         child2_index = child2_index + 1)
-
-write.table(history_dat_bl1,"./inference/history.bl1.txt", sep="\t", quote = F, row.names = F)
+# remove burn-in
+history_time <- dplyr::filter(history_time, iteration > 20000)
+history_bl1 <- dplyr::filter(history_bl1, iteration > 20000)
 ```
 
-The next time you run this script you just need to read in the thinned
-histories. One file with sampled histories when using the
-time-calibrated host tree, and one using the transformed host tree (all
-branch lengths = 1).
-
-``` r
-history_dat_time = read.table("./inference/history.time.txt", sep="\t", header=T, colClasses = colclasses)
-history_dat_bl1 = read.table("./inference/history.bl1.txt", sep="\t", header=T, colClasses = colclasses)
-```
+From now on, we’ll only use the history inferred measuring the distance
+between hosts in terms of cladogenetic events (`history_bl1`). You can
+repeat all steps with `history_time` to get the results when distances
+between hosts are measured in terms of anagenetic change.
 
 ### Effective rate of evolution
 
-``` r
-tree_length <- sum(tree$edge.length)+86
-n_events_time <- group_by(history_dat_time,iteration) %>% 
-  summarise(n = n()) %>% 
-  summarise(mean = mean(n)) %>% 
-  pull(mean)
-n_events_bl1 <- group_by(history_dat_bl1,iteration) %>% 
-  summarise(n = n()) %>% 
-  summarise(mean = mean(n)) %>% 
-  pull(mean)
-
-(rate_time <- n_events_time/tree_length)
-```
-
-    ## [1] 0.09754024
+Let’s calculate the average number of events (host gains and host
+losses) across MCMC samples. Of those, how many are gains and how many
+are losses?
 
 ``` r
-(rate_bl1 <- n_events_bl1/tree_length)
+(n_events <- count_events(history_bl1))
 ```
 
-    ## [1] 0.0950814
+    ## [1] 148.5197
 
-In both analyses, the rate of host repertoire evolution was near 1 event
-every 10 Myr (along each branch).
+``` r
+(gl_events <- count_gl(history_bl1))
+```
+
+    ##    gains   losses 
+    ## 75.33333 73.18639
+
+Similarly, we can calculate the rate of host-repertoire evolution across
+the branches of the butterfly tree, which is the number of events
+divided by the sum of branch lengths of the butterfly tree. In this
+case, we inferred that the rate of evolution is around 6 events every
+100 million years, along each branch of the Pieridae tree.
+
+``` r
+(rate <- effective_rate(history_bl1,tree))
+```
+
+    ## [1] 0.06171999
+
+### States at internal nodes
+
+A traditional approach for ancestral state reconstructions is to get the
+posterior probability for each state at internal nodes of the tree. In
+our case, we calculated the probability of interactions between each
+internal node in the butterfly tree and each host taxon.
+
+First, we need to choose which internal nodes we want to include. For
+that, we need to look at the labels at the internal nodes of the tree
+file exported by RevBayes.
+
+``` r
+plot(tree, show.node.label = TRUE, cex = 0.5)
+```
+
+![](2-Pieridae_histories_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+
+Then we calculate the probabilities and, using *igraph*, we transform
+the matrix into an edge list for plotting. This step is a bit slow, so
+you can skip it and load the edge list below.
+
+``` r
+# which internal nodes to use? I'll go for all of them.
+nodes <- 67:131
+pp_at_nodes <- posterior_at_nodes(history_bl1, nodes, host_tree)
+
+graph <- graph_from_incidence_matrix(pp_at_nodes, weighted = TRUE)
+
+edge_list_nodes <- get.data.frame(graph, what = "edges") %>% 
+  mutate(from = factor(from, levels = host_tree$tip.label),
+         to = factor(to, levels = paste0("Index_",nodes))) %>% 
+  rename(p = weight)
+```
+
+You can simply read the edge list like so
+
+``` r
+edge_list_nodes <- readRDS("./inference/states_at_nodes_bl1.rds")
+```
+
+Now we can plot the probabilities of interactions at internal nodes.
+Figure 2 was drawn based on these plots and the phylogenetic trees.
+
+``` r
+# all interactions
+gg_all_nodes <- ggplot(edge_list_nodes, aes(x = to, y = from)) +
+  geom_tile(aes(fill = p)) +
+  scale_x_discrete(drop = FALSE) +
+  scale_y_discrete(drop = FALSE) +
+  scale_fill_gradient(low = "white", high = "black") +
+  labs(fill = "Posterior\nprobability") +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 270, hjust = 0, size = 7),
+    axis.text.y = element_text(size = 7),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank())
+
+# only high probability
+gg_high_nodes <- filter(edge_list_nodes, p > 0.9) %>%
+  ggplot(aes(x = to, y = from)) + 
+  geom_tile(aes(fill = p)) +
+  scale_x_discrete(drop = FALSE) +
+  scale_y_discrete(drop = FALSE) +
+  scale_fill_gradient(low = "grey50", high = "black") +
+  labs(fill = "Posterior\nprobability") +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 270, hjust = 0, size = 7),
+    axis.text.y = element_text(size = 7),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank())
+```
+
+``` r
+gg_all_nodes + gg_high_nodes
+```
+
+![](2-Pieridae_histories_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
 
 ### Ancestral networks
 
 **(at given ages)**
 
-First load the script `functions_ancestral_states.R` which contains the
-functions to calculate the posterior probabilities for each
-plant-butterfly interaction at given times in the past.
+We can do this in two ways:
+
+1.  Summarize the posterior probabilities of interactions into one
+    network per time point
+2.  Represent each time point by all networks sampled during MCMC
+
+#### Summary networks
+
+`posterior_at_ages( )` finds the parasite lineages that were extant at
+given time points (ages) in the past and calculates the posterior
+probability for interactions between these parasites and each host.
 
 ``` r
-source("functions_ancestral_states.R")
+# first choose the ages
+ages <- seq(80,10,-10)
 ```
 
-Then choose the times in the past at which you want to reconstruct the
-network.
-
 ``` r
-ages = c(80,70,60,50,40,30,20,10,0)
+# slow!
+pp_at_ages <- posterior_at_ages(history_bl1, ages, tree, host_tree)
 ```
 
-This part is slow, so I won’t run it here.
-
 ``` r
-list_m_at_ages = list()
-for (i in 1:(length(ages)-1)) {
-  age = ages[i]
-  list_m_at_ages[[i]] = t(make_matrix_at_age( history_dat_bl1, age, s_hit=c(2) ))
-}
+# quick solution 
+pp_at_ages <- readRDS("./inference/list_m_at_ages_bl1.rds")
 ```
 
-I have done this before and saved the list as a .rds file.
+We can add the extant network to the list with all ancestral networks,
+so that later they processed at the same time. Also add time 0 to `ages`
 
 ``` r
-list_m_at_ages <- readRDS("./inference/list_m_at_ages_bl1.rds")
-  
-length(list_m_at_ages)
+pp_at_ages[[9]] <- ext_net
+ages <- c(ages,0)
 ```
 
-    ## [1] 8
+Then, we can make different incidence matrices based on two things: the
+minimum interaction probability and whether to make a weighted or binary
+network. To build weighted networks we use the posterior probabilities
+as weights for each interaction. But since many interactions have really
+small probabilities, we can set a minimum probability, below which the
+weight is set to 0. In binary networks, only links with probability
+higher than the threshold are assumed to be present and all others are
+assumed absent.
 
 ``` r
-head(list_m_at_ages[[1]])
+weighted_net_10 <- get_incidence_matrix_at_ages(pp_at_ages, pt = 0.1, weighted = TRUE)
+weighted_net_50 <- get_incidence_matrix_at_ages(pp_at_ages, pt = 0.5, weighted = TRUE)
+binary_net_90 <- get_incidence_matrix_at_ages(pp_at_ages, pt = 0.9, weighted = FALSE)
 ```
 
-    ##                Pseudopontia     Index_70    Index_129
-    ## Amborellaceae  0.0066648153 0.0183282422 0.0077756179
-    ## Cabombaceae    0.0013885032 0.0005554013 0.0005554013
-    ## Schisandraceae 0.0097195224 0.0166620383 0.0066648153
-    ## Annonaceae     0.0016662038 0.0013885032 0.0005554013
-    ## Siparunaceae   0.0011108026 0.0016662038 0.0000000000
-    ## Saururaceae    0.0008331019 0.0011108026 0.0005554013
+Now we can identify the modules in each of the three summary networks at
+each age and plot them. Here, I’ll go through all the steps with the
+`weighted_net_50` network and point out when something needs to be
+changed when analyzing a binary network.
 
-Then we add the extant network in the list with all ancestral networks.
+#### Find modules
 
-``` r
-list_m_at_ages[[9]] <- ext_net
-```
-
-We can build two kinds of ancestral networks, binary and quantitative.
-For binary networks, we need to choose a probability threshold above
-which we consider the interaction has enough support. Interactions above
-the threshold are coded as 1, and the remaining interactions are coded
-as 0. For now, we’ll do only binary networks.
-
-#### Binary networks
-
-**(with a probability threshold)**
-
-After defining the probability threshold, we transform the probabilities
-into 1s and 0s.
+(stochastic step!)
 
 ``` r
-# probability threshold
-pt <- 90 
-# gather networks in a list
-net_list <- list()
-for(m in 1:length(list_m_at_ages)){
-  matrix <- list_m_at_ages[[m]]
-  for(i in 1:nrow(matrix)){
-    for(j in 1:ncol(matrix)){
-      if(matrix[i,j] < pt/100){
-        matrix[i,j] = 0
-      } else{
-        matrix[i,j] = 1
-      }
-    }
-  }
-  df <- as.data.frame(matrix) # so that it doesn't become a vector
-  df = df[ rowSums(df)!=0, ]  # if only one row/column is left
-  df = df[ ,colSums(df)!=0 ]
-  net_list[[m]] <- df
-}
+all_wmod50 <- tibble()
 
-net_list[[1]]
-```
-
-    ##          Index_70 Index_129
-    ## Fabaceae        1         1
-
-#### Calculate modularity
-
-(stochastic step\!)
-
-This doesn’t work for the network at 80Ma because it only has one host,
-so we add it manually before calculating for the other networks.
-
-``` r
-all_mod <- tibble(name = c(rownames(net_list[[1]]),colnames(net_list[[1]])), 
-                  age = 80,
-                  original_module = 1)
-
-for(i in 2:length(net_list)){
+for(i in 1:length(weighted_net_50)){
   set.seed(5)
-  mod <- computeModules(net_list[[i]])
-  assign(paste0("mod_",ages[i]),mod)
-  mod_list <- listModuleInformation(mod)[[2]]
-  nmod <- length(mod_list)
+  wmod <- computeModules(weighted_net_50[[i]])
+  assign(paste0("wmod50_",ages[i]),wmod)
+  wmod_list <- listModuleInformation(wmod)[[2]]
+  nwmod <- length(wmod_list)
   
-  for(m in 1:nmod){
-    members <- unlist(mod_list[[m]])
+  for(m in 1:nwmod){
+    members <- unlist(wmod_list[[m]])
     mtbl <- tibble(name = members, 
                    age = rep(ages[i], length(members)),
                    original_module = rep(m, length(members)))
-    
-    all_mod <- bind_rows(all_mod, mtbl)
+                   
+    all_wmod50 <- bind_rows(all_wmod50, mtbl)
   }
 }
 ```
 
 ``` r
-# check modules for some network
-plotModuleWeb(mod_50, labsize = 0.4)
+# you can check the modules for some network like so
+plotModuleWeb(wmod50_50, labsize = 0.4)
 ```
 
-![](2-Pieridae_histories_files/figure-gfm/one_module-1.png)<!-- -->
+![](2-Pieridae_histories_files/figure-gfm/one_wmodule-1.png)<!-- -->
 
 **Match modules across ages**
 
-I modified `all_mod` outside R to match the modules, so that all modules
-across ages containing, for example, Fabaceae, have the same name. Then
-I read it in as `all_mod_edited` and fixed the information in the
-tidygraphs.
+I modified `all_wmod50` outside R to match the modules across ages. Then
+I read it in as `all_mod50_edited`.
 
 ``` r
-#write.csv(all_mod, "./networks/all_mod_bl1.csv", row.names = F)    
-all_mod_edited <- read.csv("./networks/all_mod_bl1.csv", header = T, stringsAsFactors = F)
+all_wmod50_edited <- read.csv("./networks/all_wmod50_bl1.csv", header = T, stringsAsFactors = F)
 ```
 
-#### Make tidygraphs with module information
+**Make tidygraphs with module information**
 
-Get weighted graph from list\_m\_at\_ages after setting minimum weight
+Get weighted graph from `weighted_net_50`
 
 ``` r
-minp <- 10
-
-list_tgraphs <- list()
-for(n in 1:length(net_list)){
-  wnet <- list_m_at_ages[[n]]
-  for(i in 1:nrow(wnet)){
-    for(j in 1:ncol(wnet)){
-      if(wnet[i,j] < minp/100){
-        wnet[i,j] = 0
-      }
-    }
-  }
-  wnet = wnet[ rowSums(wnet)!=0, ]
-  wnet = wnet[ ,colSums(wnet)!=0 ]
+list_wtgraphs50 <- list()
+for(n in 1:length(weighted_net_50)){
+  wnet <- as.matrix(weighted_net_50[[n]])
   
   wgraph <- as_tbl_graph(wnet, directed = F) %>% 
-    left_join(filter(all_mod_edited, age == ages[n]), by = "name") %>% 
+    left_join(filter(all_wmod50_edited, age == ages[n]), by = "name") %>% 
     select(type, name, module)
-
-  list_tgraphs[[n]] <- wgraph
+  
+  list_wtgraphs50[[n]] <- wgraph
 }
 ```
 
-#### Make tree for each age
+**Make tree for each age**
 
 ``` r
 # Must be a tree with node labels
-tree <- treeio::read.newick("./data/tree_nodelab.tre", node.label = "label")
-# Add its root time
+# and root.time
 tree$root.time <- max(tree.age(tree)$ages)
 
 # Slice the tree at ages and create data frame with module info
-list_subtrees <- list()
-list_tip_data <- list()
+list_subtreesw50 <- list()
+list_tip_dataw50 <- list()
 
 # model "acctran" always uses the value from the ancestral node
 for(i in 1:(length(ages)-1)){
   subtree <- slice.tree(tree, age = ages[[i]], "acctran")
-  list_subtrees[[i]] <- subtree
-
-  graph <- list_tgraphs[[i]]
+  list_subtreesw50[[i]] <- subtree
+  
+  graph <- list_wtgraphs50[[i]]
   mod_from_graph <- tibble(module = activate(graph,nodes) %>% filter(type == TRUE) %>% pull(module),
                            label = activate(graph,nodes) %>% filter(type == TRUE) %>% pull(name))
   # extra step just to check that tip labels and graph node names match
   tip_data <- tibble(label = subtree$tip.label) %>% 
     inner_join(mod_from_graph, by = "label") 
-  list_tip_data[[i]] <- tip_data
+  list_tip_dataw50[[i]] <- tip_data
 }
 
-list_subtrees[[9]] <- tree
-list_tip_data[[9]] <- tibble(label = tree$tip.label) %>% 
-  inner_join(filter(all_mod_edited, age == 0), by = c("label" = "name"))
+# add tree and module info for present time
+list_subtreesw50[[9]] <- tree
+list_tip_dataw50[[9]] <- tibble(label = tree$tip.label) %>% 
+  inner_join(filter(all_wmod50_edited, age == 0), by = c("label" = "name"))
 ```
 
-#### Plot networks and trees
+**Plot ggtree and ggraph (Fig. 4 in the paper)**
 
 ``` r
 # Choose colors and sizes
-mod_levels <- paste0('M',1:12)
-custom_pal <- c("#b4356c","#1b1581","#e34c5b","#fca33a","#fbeba9","#fdc486",
-                "#802b72","#f8c4cc","#c8d9ee","#82a0be","#00a2bf","#006e82")
+wmod_levels50 <- c(paste0('M',1:12))
+custom_palw50 <- c("#b4356c","#1b1581","#e34c5b","#fca33a","#fbeba9","#fdc486",
+                 "#802b72","#f8c4cc","#c8d9ee","#82a0be","#00a2bf","#006e82")
 tip_size = c(3,3,3,2.5,2.5,2,2,2,2)
 node_size = c(4,4,3,3,3,3,3,3,3)
 
 for(i in 1:length(ages)){
   
-  subtree <- list_subtrees[[i]]
-  ggt <- ggtree(subtree, ladderize = F) %<+% list_tip_data[[i]] +
-    geom_tippoint(aes(color = factor(module, levels = mod_levels)), size = tip_size[i]) + 
+  subtree <- list_subtreesw50[[i]]
+  ggt <- ggtree(subtree, ladderize = T) %<+% list_tip_dataw50[[i]] +
+    geom_tippoint(aes(color = factor(module, levels = wmod_levels50)), size = tip_size[i]) + 
     geom_rootedge(rootedge = 1) +
-    scale_color_manual(values = custom_pal,na.value = "grey70", drop = F) +
+    scale_color_manual(values = custom_palw50, na.value = "grey70", drop = F) +
     xlim(c(0,tree$root.time)) +
     theme_tree2() +
     theme(legend.position = "none")
   
-  assign(paste0("ggt_",ages[[i]]), ggt)
+  assign(paste0("ggtw50_",ages[[i]]), ggt)
   
-  graph <- list_tgraphs[[i]] %E>% 
-    mutate(highpp = case_when(weight >= 0.9 ~ "high",
-                              weight < 0.9 ~ "low"))
-  laybip = layout_as_bipartite(graph)
-  laybip = laybip[,c(2,1)]
+  graph <- list_wtgraphs50[[i]] #%E>% 
+    #mutate(highpp = case_when(weight >= 0.5 ~ "high",
+    #                          weight < 0.5 ~ "low"))
   
-  ggn <- ggraph(graph, layout = 'stress') + #, layout = laybip) +
-    geom_edge_link(aes(width = weight, color = highpp)) + 
-    geom_node_point(aes(shape = type, color = factor(module, levels = mod_levels)), size = node_size[i]) +
+  ggn <- ggraph(graph, layout = 'stress') +
+    #geom_edge_link(aes(width = weight, color = highpp)) + 
+    geom_edge_link(aes(width = weight), color = "grey50") +
+    geom_node_point(aes(shape = type, color = factor(module, levels = wmod_levels50)), size = node_size[i]) +
     scale_shape_manual(values = c("square","circle")) +
-    scale_color_manual(values = custom_pal, na.value = "grey70", drop = F) +
-    scale_edge_width("Probability", range = c(0.1,1)) +
-    scale_edge_color_manual(values = c("grey50","grey80")) +
-    labs(title = paste0(ages[[i]]," Ma"), shape = "", color = "Module") +    # CHANGE
+    scale_color_manual(values = custom_palw50, na.value = "grey70", drop = F) +
+    scale_edge_width("Probability", range = c(0.3,1)) +
+    #scale_edge_color_manual(values = c("grey50","grey80")) +
+    labs(title = paste0(ages[[i]]," Ma"), shape = "", color = "Module") + 
     theme_void() +
     theme(legend.position = "none")
   
-  assign(paste0("ggn_",ages[[i]]), ggn)
+  assign(paste0("ggnw50_",ages[[i]]), ggn)
 }
 
 # define layout
@@ -400,163 +414,37 @@ design <- c(patchwork::area(1, 1, 1, 1),
 
 ``` r
 # plot!
-ggt_80 + ggn_80 +
-  ggt_70 + ggn_70 +
-  ggt_60 + ggn_60 +
-  ggt_50 + ggn_50 +
-  ggt_40 + ggn_40 +
-  ggt_30 + ggn_30 +
-  ggt_20 + ggn_20 +
-  ggt_10 + ggn_10 +
-  ggt_0 + ggn_0 +
+ggtw50_80 + ggnw50_80 +
+  ggtw50_70 + ggnw50_70 +
+  ggtw50_60 + ggnw50_60 +
+  ggtw50_50 + ggnw50_50 +
+  ggtw50_40 + ggnw50_40 +
+  ggtw50_30 + ggnw50_30 +
+  ggtw50_20 + ggnw50_20 +
+  ggtw50_10 + ggnw50_10 +
+  ggtw50_0 + ggnw50_0 +
   plot_layout(design = design)
 ```
 
-![](2-Pieridae_histories_files/figure-gfm/fig3-1.png)<!-- -->
+![](2-Pieridae_histories_files/figure-gfm/fig4-1.png)<!-- -->
 
-### Weighted networks
+Note that the tip order here is different from the figure in the paper.
+This is because here we are ladderizing the tree with `ggtree` whereas
+originally, I was not. Something changed either in `ggtree` or in
+`dispRity` and now the tree is not plotted correctly when we set
+ladderize = FALSE. Also, the networks have been edited outside R for the
+figure in the paper. In any case, the information contained in the
+figure is the same. \#\#\#\# Other plots in Figure 2
 
-To build weighted networks we use the posterior probabilities as weights
-for each interaction. But since many interactions have really small
-probabilities, we can set a minimum probability, below which the weight
-is set to 0. Here I’ll use the same minimum as I used before for
-constructing the graphs. These are independent steps, but it makes sense
-to use the same values.
-
-``` r
-# probability threshold
-lpt <- 10 
-# gather networks in a list
-list_wnets <- list()
-for(m in 1:length(list_m_at_ages)){
-  matrix <- list_m_at_ages[[m]]
-  for(i in 1:nrow(matrix)){
-    for(j in 1:ncol(matrix)){
-      if(matrix[i,j] < lpt/100){
-        matrix[i,j] = 0
-      }
-    }
-  }
-  matrix = matrix[ rowSums(matrix)!=0, ]
-  matrix = matrix[ ,colSums(matrix)!=0 ]
-  list_wnets[[m]] <- matrix
-}
-
-list_wnets[[1]]
-```
-
-    ##             Pseudopontia  Index_70 Index_129
-    ## Olacaceae      0.1666204 0.3282422 0.1199667
-    ## Santalaceae    0.0000000 0.1435712 0.0000000
-    ## Capparaceae    0.8181061 0.7117467 0.8767009
-    ## Fabaceae       0.8758678 0.9697306 0.9539017
-
-#### Calculate weighted modularity
+Now that we have found the modules for the extant network, we can
+produce other plots to combine with extant butterfly tree and ancestral
+states at nodes
 
 ``` r
-all_wmod <- tibble()
-
-for(i in 1:length(list_wnets)){
-  set.seed(5)
-  wmod <- computeModules(list_wnets[[i]])
-  assign(paste0("wmod_",ages[i]),wmod)
-  wmod_list <- listModuleInformation(wmod)[[2]]
-  nwmod <- length(wmod_list)
-  
-  for(m in 1:nwmod){
-    members <- unlist(wmod_list[[m]])
-    mtbl <- tibble(name = members, 
-                   age = rep(ages[i], length(members)),
-                   original_module = rep(m, length(members)))
-                   
-    all_wmod <- bind_rows(all_wmod, mtbl)
-  }
-}
-```
-
-``` r
-# check modules for same network as before
-plotModuleWeb(wmod_50, labsize = 0.4)
-```
-
-![](2-Pieridae_histories_files/figure-gfm/one_wmodule-1.png)<!-- -->
-
-### States at internal nodes
-
-Besides looking at host repertoires at a given time in the past, we can
-also get the probability for the interaction between each internal node
-in the butterfly tree and each host taxon.
-
-``` r
-# This also depends on functions within `functions_ancestral_states.R`. 
-source("functions_ancestral_states.R")
-
-hosts <- host_tree$tip.label
-# which internal nodes to use? I'll go for all of them.
-nodes <- 67:131
-
-pp <- make_matrix_nodes(history_dat, nodes, c(2))
-row.names(pp) <- paste0("Index_",nodes)
-colnames(pp) <- host_tree$tip.label
-
-assign(paste0("pp_",name), pp)
-
-graph <- graph_from_incidence_matrix(pp, weighted = TRUE)
-el <- get.data.frame(graph, what = "edges") %>% 
-  mutate(to = factor(to, levels = hosts),
-         from = factor(from, levels = paste0("Index_",nodes))) %>% 
-  rename(p = weight)
-```
-
-Again, I ran this before and will read in the probability matrix now.
-
-``` r
-el <- readRDS("./inference/states_at_nodes_bl1.rds")
-
-# all interactions
-gg_all_nodes <- ggplot(el, aes(x = to, y = from)) +
-  geom_tile(aes(fill = p)) +
-  scale_x_discrete(drop = FALSE) +
-  scale_y_discrete(drop = FALSE) +
-  scale_fill_gradient(low = "white", high = "black") +
-  labs(fill = "Posterior\nprobability") +
-  theme_bw() +
-  theme(
-    axis.text.x = element_text(angle = 270, hjust = 0, size = 7),
-    axis.text.y = element_text(size = 7),
-    axis.title.x = element_blank(),
-    axis.title.y = element_blank())
-
-# only high probability
-gg_high_nodes <- filter(el, p > 0.9) %>%
-  ggplot(aes(x = to, y = from)) + 
-  geom_tile(aes(fill = p)) +
-  scale_x_discrete(drop = FALSE) +
-  scale_y_discrete(drop = FALSE) +
-  scale_fill_gradient(low = "grey50", high = "black") +
-  labs(fill = "Posterior\nprobability") +
-  theme_bw() +
-  theme(
-    axis.text.x = element_text(angle = 270, hjust = 0, size = 7),
-    axis.text.y = element_text(size = 7),
-    axis.title.x = element_blank(),
-    axis.title.y = element_blank())
-```
-
-``` r
-gg_all_nodes + gg_high_nodes
-```
-
-![](2-Pieridae_histories_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
-
-Other plots to combine with extant butterfly tree and ancestral states
-at nodes
-
-``` r
-edge_list <- get.data.frame(list_tgraphs[[9]], what = "edges") %>%
-inner_join(all_mod_edited %>% filter(age == 0) %>% select(name, module), by = c("from" = "name")) %>%
-inner_join(all_mod_edited %>% filter(age == 0) %>% select(name, module), by = c("to" = "name")) %>%
-mutate(Module = ifelse(module.x == module.y, module.x, NA))
+edge_list <- get.data.frame(list_wtgraphs50[[9]], what = "edges") %>%
+  inner_join(all_wmod50_edited %>% filter(age == 0) %>% select(name, module), by = c("from" = "name")) %>%
+  inner_join(all_wmod50_edited %>% filter(age == 0) %>% select(name, module), by = c("to" = "name")) %>%
+  mutate(Module = ifelse(module.x == module.y, module.x, NA))
 
 phylob <- tree$tip.label
 phylop <- host_tree$tip.label
@@ -566,17 +454,15 @@ plot_net <- edge_list %>% mutate(
   from = factor(from, levels = phylop))
 ```
 
-  - **Extant network with modules**
-
-<!-- end list -->
+-   **Extant network with modules**
 
 ``` r
-ggplot(plot_net, aes(x = from, y = to, fill = factor(Module, levels = mod_levels))) +
+ggplot(plot_net, aes(x = from, y = to, fill = factor(Module, levels = wmod_levels50))) +
   geom_tile() +
   theme_bw() +
   scale_x_discrete(drop = FALSE) +
   scale_y_discrete(drop = FALSE) +
-  scale_fill_manual(values = custom_pal, na.value = "grey70", drop = T) +
+  scale_fill_manual(values = custom_palw50, na.value = "grey70", drop = T) +
   labs(fill = "Module") +
   theme(
     axis.text.x = element_text(angle = 270, hjust = 0, size = 6),
@@ -587,23 +473,19 @@ ggplot(plot_net, aes(x = from, y = to, fill = factor(Module, levels = mod_levels
 
 ![](2-Pieridae_histories_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->
 
-  - **Host tree with modules**
-
-<!-- end list -->
+-   **Host tree with modules**
 
 ``` r
 host_tip_mod <- tibble(label = host_tree$tip.label) %>% 
-  inner_join(filter(all_mod_edited, age == 0), by = c("label" = "name"))
+  inner_join(filter(all_wmod50_edited, age == 0), by = c("label" = "name"))
 
 ggtree_host <- ggtree(host_tree, ladderize = F) %<+% host_tip_mod +
-  geom_tippoint(aes(color = factor(module, levels = mod_levels)), size = 2, shape = "square") + 
-  scale_color_manual(values = custom_pal,na.value = "grey70", drop = F) +
+  geom_tippoint(aes(color = factor(module, levels = wmod_levels50)), size = 2, shape = "square") + 
+  scale_color_manual(values = custom_palw50,na.value = "grey70", drop = F) +
   labs(color = "Module", title = "Host tree with modules")
 ```
 
-  - **Butterfly tree with node names**
-
-<!-- end list -->
+-   **Butterfly tree with node names**
 
 ``` r
 ggtree_but <- ggtree(tree) + geom_tiplab(size = 2) + geom_nodelab(size = 2) +
