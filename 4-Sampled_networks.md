@@ -1,52 +1,36 @@
-#'---
-#'title: "Pieridae host repertoire - Sampled networks"
-#'author: "Mariana Braga"
-#'date: "`r format(Sys.time(), '%d %B, %Y')`"
-#'output: github_document
-#'---
+Pieridae host repertoire - Sampled networks
+================
+Mariana Braga
+03 February, 2021
 
-#'-------------
-#'
-#' Script 4 for analyses performed in Braga et al. 2021
-#' *Evolution of butterfly-plant networks over time, as revealed by Bayesian inference of host repertoire*.
-#'
+------------------------------------------------------------------------
 
-#+ include = FALSE
+Script 4 for analyses performed in Braga et al. 2021 *Evolution of
+butterfly-plant networks over time, as revealed by Bayesian inference of
+host repertoire*.
 
-library(evolnets)
-library(ape)
-library(tidyverse)
-library(patchwork)
-library(bipartite)
+### Sampled networks
 
-#library(viridis)
-library(RColorBrewer)
-library(wesanderson)
-#library(ggraph)
-#library(tidygraph)
-#library(igraph)
+In this last script we will estimate the posterior distribution for
+modularity and nestedness directly from the sampled networks during
+MCMC.
 
+The first step then is to retrieve these networks from the inferred
+character history.
 
-/*# Get samples from the posterior ----
-*/
-#' ### Sampled networks
-#' 
-#' In this last script we will estimate the posterior distribution for 
-#' modularity and nestedness directly from the sampled networks during MCMC.
-#' 
-#' The first step then is to retrieve these networks from the inferred character history.
-
+``` r
 # Read in necessary files: trees and character history
 tree <- read.tree("./data/tree_nodelab.tre")
 host_tree <- read.tree("./data/angio_pie_50tips_ladder.phy")
 
 history_bl1 <- read_history('./inference/out.3.bl1.pieridae.2s.history.txt') %>% 
   dplyr::filter(iteration > 20000)
-  
-#' We don't need to get a network for every iteration of the MCMC, so let's 
-#' thin out `history_bl1` first.
-#' 
+```
 
+We don’t need to get a network for every iteration of the MCMC, so let’s
+thin out `history_bl1` first.
+
+``` r
 # Get 100 samples
 it_seq <- seq(20000,200000, 1800)  
 history <- filter(history_bl1, iteration %in% it_seq[-1])
@@ -55,38 +39,36 @@ nsamp <- length(unique(history$iteration))
 # get samples at ages
 ages <- seq(80,10,-10)
 samples_ages <- samples_at_ages(history, ages, tree, host_tree)
+```
 
+Then, calculate z-scores for nestedness and modularity for each sampled
+network.
 
-#' Then, calculate z-scores for nestedness and modularity for each sampled network.
-
-#+ eval = FALSE
+``` r
 # slow!
 # nestedness of samples
 Nz_samples <- NODF_posterior_at_ages(samples_ages, ages, null = 100, seed = 2)
+```
 
-/*
-saveRDS(Nz_samples, "./networks/Nz_samples.rds")  
-*/
-
-#+ eval = FALSE
+``` r
 # even slower! - you can try with a lower number of null networks first, e.g. null = 3
 # modularity of samples
 Qz_samples <- Q_posterior_at_ages(samples_ages, ages, null = 100, seed = 5)
+```
 
-#+
+``` r
 # read it in instead
 Nz_samples <- readRDS("./networks/Nz_samples.rds")
 Qz_samples <- readRDS("./networks/Qz_samples.rds")
+```
 
+**Posterior probability of significance**
 
-/*# _Pp of N and Q ----
-*/
-#' **Posterior probability of significance**
-#' 
-#' We summarized the statistical significance of the network structures
-#' among samples with the proportion of sampled networks that are significantly
-#' more nested/modular than expected by chance.
+We summarized the statistical significance of the network structures
+among samples with the proportion of sampled networks that are
+significantly more nested/modular than expected by chance.
 
+``` r
 ppN <- Nz_samples %>% 
   group_by(age) %>% 
   filter(p <= 0.05) %>% 
@@ -98,22 +80,20 @@ ppQ <- Qz_samples %>%
  filter(p <= 0.05) %>% 
  summarise(pp = n()/nsamp)  %>% 
   mutate(y = 13)
+```
 
+### Plot Z-scores for extant, sampled and summary networks
 
-/*# __Plot Z-scores samples and summary networks ----
-*/
-#' ### Plot Z-scores for extant, sampled and summary networks
-#' 
-#' Read z-scores for all three summary networks (done in script 3)
-#' 
+Read z-scores for all three summary networks (done in script 3)
 
+``` r
 Qz <- readRDS("./networks/Qz.rds")
 Nz <- readRDS("./networks/Nz.rds")
+```
 
-#' Now we can plot all z-scores across ages (Fig. 3 in the paper)
-#'
+Now we can plot all z-scores across ages (Fig. 3 in the paper)
 
-#+ message = FALSE
+``` r
 pal_3c <- brewer.pal(n = 9, name = 'Blues')[c(9,7,5)]
 wes_orange <- wes_palette("Zissou1",7, type = "continuous")[6]
 
@@ -152,19 +132,26 @@ violQ <- ggplot(Qz) +
   theme_bw()
 
 violQ / violN
+```
 
+    ## Warning: Removed 56 rows containing non-finite values (stat_ydensity).
 
+    ## Warning: Removed 56 rows containing non-finite values (stat_summary).
 
-/*# Pairwise module membership ----
-*/
-#' ### Pairwise module membership
-#' 
-#' To be able to calculate the probability that 2 nodes belong to the same module,
-#' we have to get the information about module assignment while calculating modularity.
-#' This function is not implemented in `evolnets` yet, so we'll do it with more lines of code.
-#' 
+    ## Warning: Removed 66 rows containing non-finite values (stat_ydensity).
 
-#+ eval = FALSE
+    ## Warning: Removed 66 rows containing non-finite values (stat_summary).
+
+![](4-Sampled_networks_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+
+### Pairwise module membership
+
+To be able to calculate the probability that 2 nodes belong to the same
+module, we have to get the information about module assignment while
+calculating modularity. This function is not implemented in `evolnets`
+yet, so we’ll do it with more lines of code.
+
+``` r
 # slow!
 # Calculate Q for sampled networks AND save modules
 Qsamples <- tibble()
@@ -192,35 +179,39 @@ for(a in 1:(length(ages)-1)){
     }
   }
 }
+```
 
-/* 
-#saveRDS(Qsamples, "./networks/Qsamples.rds")
-#saveRDS(Mod_samples, "./networks/Mod_samples.rds")
-*/ 
+This produces one tibble with Q values and another with the module
+information. Now, we only need the latter:
 
-#' This produces one tibble with Q values and another with the module information.
-#' Now, we only need the latter:
-#'      
-
+``` r
 # shortcut  
 Mod_samples <- readRDS("./networks/Mod_samples.rds")
+```
 
-#' Before we continue, we need to remove the sampled networks that are fully connected
-#' and, because of that, produce spurious modules.
-#'
+Before we continue, we need to remove the sampled networks that are
+fully connected and, because of that, produce spurious modules.
 
+``` r
 # Find sampled networks at 80Ma that got several modules with the same hosts (connectance = 1)
 out <- Mod_samples %>% group_by(age, sample) %>% distinct(name) %>% summarize(u=n()) %>% 
   left_join(Mod_samples %>% group_by(age, sample) %>% summarize(n=n())) %>% 
   mutate(problem = case_when(u != n ~ "YES", u == n ~ "NO")) %>% 
   filter(problem == "YES")
+```
 
+    ## `summarise()` has grouped output by 'age'. You can override using the `.groups` argument.
+    ## `summarise()` has grouped output by 'age'. You can override using the `.groups` argument.
+
+    ## Joining, by = c("age", "sample")
+
+``` r
 good_samples_at_80 <- setdiff(1:100,out$sample)
+```
 
-#' Calculate pairwise module membership
-#'
+Calculate pairwise module membership
 
-#+ eval = FALSE
+``` r
 # slow!
 pair_mod_matrix <- list() # for heatmap from a matrix
 pair_mod_tbl <- list()    # for heatmap from an edge list
@@ -280,8 +271,9 @@ for(a in 1:length(ages)){
   pair_mod_matrix[[a]] <- heat
   pair_mod_tbl[[a]] <- tbl
 }
+```
 
-#+ 
+``` r
 # shortcut
 pair_mod_tbl <- readRDS("./networks/pair_mod_tbl.rds")
 
@@ -338,8 +330,9 @@ design <- c(patchwork::area(1,1,1,1),
             patchwork::area(3,2,4,3),
             patchwork::area(1,4,2,5),
             patchwork::area(3,4,4,5))
+```
 
-#+ fig3, fig.width = 20, fig.height = 15, warning = F
+``` r
 # plot!
 heat_mod50_80 +
   heat_mod50_70 + 
@@ -350,6 +343,8 @@ heat_mod50_80 +
   heat_mod50_20 + 
   heat_mod50_10 + 
   plot_layout(guides = 'collect', design = design)
+```
 
-#' And that is it!
-#' 
+![](4-Sampled_networks_files/figure-gfm/fig3-1.png)<!-- -->
+
+And that is it!
