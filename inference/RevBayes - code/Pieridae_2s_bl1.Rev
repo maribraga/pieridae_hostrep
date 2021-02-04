@@ -1,0 +1,116 @@
+#!/usr/bin/rb
+
+if (!exists("sim_str")) sim_str = "pieridae.2s"
+if (!exists("out_str")) out_str = "out."
+if (!exists("out_id")) out_id = 1
+out_str += out_id + ".bl1."
+
+seed(out_id)
+
+fp = "/home/mbraga/projects/hr-pieriade/"
+data_fp = fp + "data/"
+out_fp = fp + "output/"
+
+phy_plant_fn = data_fp + "angio_pie_50tips_bl1.phy"
+phy_insect_fn = data_fp + "bphy_pie_ladder.phy"
+dat_insect_fn = data_fp + sim_str + ".nex"
+out_fn = out_fp + out_str + sim_str
+
+phy_plant <- readTrees(phy_plant_fn)[1]
+phy_insect <- readTrees(phy_insect_fn)[1]
+dat_insect <- readDiscreteCharacterData(dat_insect_fn)
+
+mni = 1
+mvi = 1
+n_gen = 2e5
+n_burn = 0
+sample_freq = 50 
+tune_freq = n_burn/10
+
+n_plant_tips <- phy_plant.ntips()
+n_plant_branches <- 2 * n_plant_tips - 2
+n_insect_branches <- 2 * phy_insect.ntips() - 2
+n_sites <- dat_insect.nchar()
+
+switch_rates_pos ~ dnDirichlet( [1,1] )
+switch_rates_pos.setValue( simplex(1,10) )
+switch_rate_0_to_1 := 1e-6                 # MCMC gets stuck on first gen if rates = 0.
+switch_rate_0_to_2 := switch_rates_pos[1]
+switch_rate_1_to_0 := 1e-6
+switch_rate_1_to_2 := 1e-6
+switch_rate_2_to_0 := switch_rates_pos[2]
+switch_rate_2_to_1 := 1e-6
+
+switch_rates := v( switch_rate_0_to_1, switch_rate_0_to_2, switch_rate_1_to_0, switch_rate_1_to_2, switch_rate_2_to_0, switch_rate_2_to_1 )
+
+Q_char := fnFreeK( switch_rates, false, "eigen" )
+
+phy_scale[1] ~ dnExp(1)
+#phy_scale[1].setValue(out_id)
+phy_scale[2] := phy_scale[1]
+
+rate_modifiers[1] := fnHostSwitchRateModifier(tree=phy_plant, gainScale=phy_scale)
+
+Q_host := fnRateGeneratorSequence(Q=Q_char,
+                                   numChars=n_plant_tips,
+                                   rateModifiers=rate_modifiers)
+
+clock_host ~ dnExp(10)
+#clock_host.setValue(out_id/100)
+
+rf_host <- simplex(1,0,1)
+
+m_host ~ dnPhyloCTMCDASequence(tree=phy_insect,
+                               Q=Q_host,
+                               branchRates=clock_host,
+                               rootFrequencies=rf_host,
+                               nSites=n_plant_tips,
+                               type="Standard")
+
+m_host.clamp(dat_insect)
+
+mv[mvi++] = mvScale( phy_scale[1], weight=1 )
+mv[mvi++] = mvSimplex(switch_rates_pos, alpha=10, weight=2, tune=false)
+mv[mvi++] = mvScale(clock_host, weight=2)
+mv[mvi++] = mvCharacterHistory(ctmc=m_host,
+                               qmap_seq=Q_host,
+                               lambda=0.2,
+                               graph="node",
+                               proposal="rejection",
+                               weight=n_insect_branches)
+mv[mvi++] = mvCharacterHistory(ctmc=m_host,
+                               qmap_seq=Q_host,
+                               lambda=0.2,
+                               graph="branch",
+                               proposal="rejection",
+                               weight=n_insect_branches*2)
+
+mv[mvi++] = mvSimplex(switch_rates_pos, alpha=25, weight=5, tune=false)
+mv[mvi++] = mvScale(clock_host, weight=5, lambda = 0.2)
+mv[mvi++] = mvCharacterHistory(ctmc=m_host,
+                               qmap_seq=Q_host,
+                               lambda=0.75,
+                               graph="node",
+                               proposal="rejection",
+                               weight=n_insect_branches/2)
+mv[mvi++] = mvCharacterHistory(ctmc=m_host,
+                               qmap_seq=Q_host,
+                               lambda=0.75,
+                               graph="branch",
+                               proposal="rejection",
+                               weight=n_insect_branches)
+
+mn[mni++] = mnScreen(clock_host, phy_scale, printgen=sample_freq)
+mn[mni++] = mnModel(printgen=sample_freq, filename=out_fn + ".log")
+mn[mni++] = mnCharacterHistorySummary( filename=out_fn + ".history.txt",
+                                       ctmc=m_host,
+                                       tree=phy_insect,
+                                       printgen=sample_freq )
+mn[mni++] = mnFile( phy_insect, filename=out_fn + ".tre", printgen=sample_freq)
+
+mdl = model(m_host)
+
+ch = mcmc(mdl, mn, mv)
+ch.run(n_gen)
+ch.operatorSummary()
+q()

@@ -7,7 +7,7 @@
 
 #'-------------
 #'
-#' Script 2 for analyzes performed in Braga et al. 2021
+#' Script 2 for analyses performed in Braga et al. 2021
 #' *Evolution of butterfly-plant networks over time, as revealed by Bayesian inference of host repertoire*.
 #'
 
