@@ -1,7 +1,7 @@
 Pieridae host repertoire - parameters
 ================
 Mariana Braga
-01 February, 2021
+10 March, 2021
 
 ------------------------------------------------------------------------
 
@@ -82,7 +82,7 @@ means
 
     ## # A tibble: 2 x 5
     ##   tree   clock  beta `lambda[02]` `lambda[20]`
-    ## * <chr>  <dbl> <dbl>        <dbl>        <dbl>
+    ##   <chr>  <dbl> <dbl>        <dbl>        <dbl>
     ## 1 bl1   0.0186  1.48       0.0268        0.973
     ## 2 time  0.0200  2.10       0.0347        0.965
 
@@ -162,7 +162,7 @@ gg20 <- ggplot(all_post, aes(`lambda[20]`)) +
 ggclock + ggbeta + gg02 + gg20 + plot_layout(ncol = 4, guides = 'collect')
 ```
 
-![](1-Pieridae_parameters_files/figure-gfm/densities-1.png)<!-- -->
+![](1-Parameter_estimates_files/figure-gfm/densities-1.png)<!-- -->
 
 **Bayes factor**
 
