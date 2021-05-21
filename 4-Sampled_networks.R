@@ -56,7 +56,36 @@ nsamp <- length(unique(history$iteration))
 ages <- seq(80,10,-10)
 samples_ages <- samples_at_ages(history, ages, tree, host_tree)
 
+/*
 
+# Get network size through time
+  
+nsamp <- dim(samples_ages[[1]])[1]
+size_samples <- dplyr::tibble()
+
+for(a in 1:length(samples_ages)){
+  for(i in 1:nsamp){
+    net <- samples_ages[[a]][i,,]
+    size <- bipartite::networklevel(net, index="number of species")
+    nb <- size[2]
+    nh <- size[1]
+    nnodes <- nb + nh
+    lps <- bipartite::networklevel(net, index="links per species")
+    nlinks <- nnodes * lps
+    size_samples <- dplyr::bind_rows(size_samples, dplyr::tibble(age = ages[a], sample = i, nb=nb, nh=nh, nlinks=nlinks))
+  }
+}
+
+
+dens_b <- ggplot(size_samples, aes(age,nb, group = age)) + geom_boxplot() + scale_x_reverse()
+dens_h <- ggplot(size_samples, aes(age, nh, group = age)) + geom_boxplot() + scale_x_reverse()
+dens_l <- ggplot(size_samples, aes(age, nlinks, group = age)) + geom_boxplot() + scale_x_reverse()
+
+dens_b / dens_h / dens_l
+
+`1*/
+  
+  
 #' Then, calculate z-scores for nestedness and modularity for each sampled network.
 
 #+ eval = FALSE

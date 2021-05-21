@@ -1,11 +1,11 @@
 Pieridae host repertoire - Character history
 ================
 Mariana Braga
-03 February, 2021
+21 May, 2021
 
 ------------------------------------------------------------------------
 
-Script 2 for analyzes performed in Braga et al. 2021 *Evolution of
+Script 2 for analyses performed in Braga et al. 2021 *Evolution of
 butterfly-plant networks over time, as revealed by Bayesian inference of
 host repertoire*.
 
@@ -136,7 +136,7 @@ file exported by RevBayes.
 plot(tree, show.node.label = TRUE, cex = 0.5)
 ```
 
-![](2-Pieridae_histories_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+![](2-Character_history_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
 
 Then we calculate the probabilities and, using *igraph*, we transform
 the matrix into an edge list for plotting. This step is a bit slow, so
@@ -199,7 +199,7 @@ gg_high_nodes <- filter(edge_list_nodes, p > 0.9) %>%
 gg_all_nodes + gg_high_nodes
 ```
 
-![](2-Pieridae_histories_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+![](2-Character_history_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
 
 ### Ancestral networks
 
@@ -257,8 +257,8 @@ binary_net_90 <- get_incidence_matrix_at_ages(pp_at_ages, pt = 0.9, weighted = F
 
 Now we can identify the modules in each of the three summary networks at
 each age and plot them. Here, I’ll go through all the steps with the
-`weighted_net_50` network and point out when something needs to be
-changed when analyzing a binary network.
+`weighted_net_50` network. You can repeat the same steps for the other
+networks.
 
 #### Find modules
 
@@ -290,7 +290,7 @@ for(i in 1:length(weighted_net_50)){
 plotModuleWeb(wmod50_50, labsize = 0.4)
 ```
 
-![](2-Pieridae_histories_files/figure-gfm/one_wmodule-1.png)<!-- -->
+![](2-Character_history_files/figure-gfm/one_wmodule-1.png)<!-- -->
 
 **Match modules across ages**
 
@@ -426,7 +426,7 @@ ggtw50_80 + ggnw50_80 +
   plot_layout(design = design)
 ```
 
-![](2-Pieridae_histories_files/figure-gfm/fig4-1.png)<!-- -->
+![](2-Character_history_files/figure-gfm/fig4-1.png)<!-- -->
 
 Note that the tip order here is different from the figure in the paper.
 This is because here we are ladderizing the tree with `ggtree` whereas
@@ -473,7 +473,7 @@ ggplot(plot_net, aes(x = from, y = to, fill = factor(Module, levels = wmod_level
     axis.title.y = element_blank())
 ```
 
-![](2-Pieridae_histories_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->
+![](2-Character_history_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->
 
 -   **Host tree with modules**
 
@@ -498,4 +498,4 @@ ggtree_but <- ggtree(tree) + geom_tiplab(size = 2) + geom_nodelab(size = 2) +
 ggtree_host + ggtree_but + plot_layout(widths = c(2,3))
 ```
 
-![](2-Pieridae_histories_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
+![](2-Character_history_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->

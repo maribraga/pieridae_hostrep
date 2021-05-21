@@ -150,6 +150,9 @@ edge_list_nodes <- get.data.frame(graph, what = "edges") %>%
          to = factor(to, levels = paste0("Index_",nodes))) %>% 
   rename(p = weight)
 
+/*#### !!!! code and rds file are different !!!! Check row/col from/to !!!!
+#### !!!! update rds file and switch x and y on plots !!!!
+*/
 
 #' You can simply read the edge list like so
 #' 
