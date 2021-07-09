@@ -1,13 +1,13 @@
 Pieridae host repertoire - Structure of summary networks
 ================
 Mariana Braga
-21 May, 2021
+09 July, 2021
 
 ------------------------------------------------------------------------
 
-Script 3 for analyses performed in Braga et al. 2021 *Evolution of
-butterfly-plant networks over time, as revealed by Bayesian inference of
-host repertoire*.
+Script 3 for analyses performed in Braga et al. 2021 Ecology Letters
+*Phylogenetic reconstruction of ancestral ecological networks through
+time for pierid butterflies and their host plants*.
 
 This is a continuation of script 2 - Character history, so make sure you
 complete that one first.
@@ -209,4 +209,35 @@ Nwzscore50 <- Nwnull50 %>%
               left_join(rename(Nwobs50, Nobs = NODF)) %>% 
               group_by(age) %>% 
               summarise(p = sum(NODF > Nobs)/nit))
+
+
+Qwzscore50
 ```
+
+    ## # A tibble: 8 x 6
+    ##     age   mean      sd      Q      z     p
+    ##   <dbl>  <dbl>   <dbl>  <dbl>  <dbl> <dbl>
+    ## 1    10 0.523  0.0142  0.689  11.7   0    
+    ## 2    20 0.516  0.0161  0.655   8.58  0    
+    ## 3    30 0.492  0.0189  0.661   8.95  0    
+    ## 4    40 0.496  0.0240  0.598   4.26  0    
+    ## 5    50 0.445  0.0344  0.456   0.319 0.389
+    ## 6    60 0.293  0.0410  0.472   4.35  0    
+    ## 7    70 0.169  0.0226  0.176   0.340 0.362
+    ## 8    80 0.0836 0.00849 0.0227 -7.17  1
+
+``` r
+Nwzscore50
+```
+
+    ## # A tibble: 8 x 6
+    ##     age  mean     sd  NODF      z     p
+    ##   <dbl> <dbl>  <dbl> <dbl>  <dbl> <dbl>
+    ## 1    10  4.06  0.509  2.63 -2.80  1    
+    ## 2    20  4.42  0.597  1.93 -4.17  1    
+    ## 3    30  6.39  0.997  7.17  0.783 0.214
+    ## 4    40  7.97  1.65   5.50 -1.50  0.934
+    ## 5    50 12.5   3.62   0    -3.46  1    
+    ## 6    60 23.9   9.50   3.23 -2.18  0.996
+    ## 7    70 30.9  14.2    0    -2.17  0.98 
+    ## 8    80 21.7   8.69   0    -2.49  1

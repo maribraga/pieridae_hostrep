@@ -263,3 +263,6 @@ Nwzscore50 <- Nwnull50 %>%
               group_by(age) %>% 
               summarise(p = sum(NODF > Nobs)/nit))
 
+
+Qwzscore50
+Nwzscore50

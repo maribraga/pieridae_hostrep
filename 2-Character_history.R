@@ -56,11 +56,11 @@ host_tree <- read.tree("./data/angio_pie_50tips_ladder.phy")
 */
 #+ results='hide'
 ext_net_50h <- as.matrix(read.csv("./data/incidence_pieridae.csv", header = T, row.names = 1))
-identical(colnames(ext_net_50h), tree$tip.label)
-identical(rownames(ext_net_50h), host_tree$tip.label)
+identical(colnames(ext_net_50h), host_tree$tip.label)
+identical(rownames(ext_net_50h), tree$tip.label)
 
 #+
-ext_net <- ext_net_50h[which(rowSums(ext_net_50h) != 0),]
+ext_net <- ext_net_50h[,which(colSums(ext_net_50h) != 0)]
 dim(ext_net)
   
 
