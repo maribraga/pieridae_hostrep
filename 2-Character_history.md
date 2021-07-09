@@ -5,9 +5,9 @@ Mariana Braga
 
 ------------------------------------------------------------------------
 
-Script 2 for analyses performed in Braga et al. 2021 Ecology Letters
-*Phylogenetic reconstruction of ancestral ecological networks through
-time for pierid butterflies and their host plants*.
+Script 2 for analyses performed in Braga et al. 2021 *Phylogenetic
+reconstruction of ancestral ecological networks through time for pierid
+butterflies and their host plants*, Ecology Letters.
 
 ## Set up
 
@@ -51,16 +51,16 @@ host_tree <- read.tree("./data/angio_pie_50tips_ladder.phy")
 
 ``` r
 ext_net_50h <- as.matrix(read.csv("./data/incidence_pieridae.csv", header = T, row.names = 1))
-identical(colnames(ext_net_50h), tree$tip.label)
-identical(rownames(ext_net_50h), host_tree$tip.label)
+identical(colnames(ext_net_50h), host_tree$tip.label)
+identical(rownames(ext_net_50h), tree$tip.label)
 ```
 
 ``` r
-ext_net <- ext_net_50h[which(rowSums(ext_net_50h) != 0),]
+ext_net <- ext_net_50h[,which(colSums(ext_net_50h) != 0)]
 dim(ext_net)
 ```
 
-    ## [1] 33 66
+    ## [1] 66 33
 
 ## Character history
 
@@ -443,14 +443,14 @@ phylob <- tree$tip.label
 phylop <- host_tree$tip.label
 
 plot_net <- edge_list %>% mutate(
-  from = factor(from, levels = phylob),
-  to = factor(to, levels = phylop))
+  from = factor(from, levels = phylop),
+  to = factor(to, levels = phylob))
 ```
 
 -   **Extant network with modules**
 
 ``` r
-ggplot(plot_net, aes(x = to, y = from, fill = factor(Module, levels = wmod_levels50))) +
+ggplot(plot_net, aes(x = from, y = to, fill = factor(Module, levels = wmod_levels50))) +
   geom_tile() +
   theme_bw() +
   scale_x_discrete(drop = FALSE) +

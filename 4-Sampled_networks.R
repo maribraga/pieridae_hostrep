@@ -7,8 +7,9 @@
 
 #'-------------
 #'
-#' Script 4 for analyses performed in Braga et al. 2021 Ecology Letters
-#' *Phylogenetic reconstruction of ancestral ecological networks through time for pierid butterflies and their host plants*.
+#' Script 4 for analyses performed in Braga et al. 2021
+#' *Phylogenetic reconstruction of ancestral ecological networks through time for pierid butterflies and their host plants*,
+#' Ecology Letters.
 #'
 
 #+ include = FALSE
@@ -18,13 +19,8 @@ library(ape)
 library(tidyverse)
 library(patchwork)
 library(bipartite)
-
-#library(viridis)
 library(RColorBrewer)
 library(wesanderson)
-#library(ggraph)
-#library(tidygraph)
-#library(igraph)
 
 
 /*# Get samples from the posterior ----
@@ -40,7 +36,7 @@ library(wesanderson)
 tree <- read.tree("./data/tree_nodelab.tre")
 host_tree <- read.tree("./data/angio_pie_50tips_ladder.phy")
 
-history_bl1 <- read_history('./inference/out.3.bl1.pieridae.2s.history.txt') %>% 
+history_bl1 <- evolnets::read_history('./inference/out.3.bl1.pieridae.2s.history.txt') %>% 
   dplyr::filter(iteration > 20000)
   
 #' We don't need to get a network for every iteration of the MCMC, so let's 
@@ -54,7 +50,7 @@ nsamp <- length(unique(history$iteration))
 
 # get samples at ages
 ages <- seq(80,10,-10)
-samples_ages <- samples_at_ages(history, ages, tree, host_tree)
+samples_ages <- evolnets::posterior_at_ages(history, ages, tree, host_tree)[[1]]
 
 /*
 
@@ -83,7 +79,7 @@ dens_l <- ggplot(size_samples, aes(age, nlinks, group = age)) + geom_boxplot() +
 
 dens_b / dens_h / dens_l
 
-`1*/
+*/
   
   
 #' Then, calculate z-scores for nestedness and modularity for each sampled network.
@@ -91,7 +87,7 @@ dens_b / dens_h / dens_l
 #+ eval = FALSE
 # slow!
 # nestedness of samples
-Nz_samples <- NODF_posterior_at_ages(samples_ages, ages, null = 100, seed = 2)
+Nz_samples <- index_at_ages(samples_ages, ages, index = "NODF", null = 100, seed = 2)
 
 /*
 saveRDS(Nz_samples, "./networks/Nz_samples.rds")  
@@ -100,7 +96,7 @@ saveRDS(Nz_samples, "./networks/Nz_samples.rds")
 #+ eval = FALSE
 # even slower! - you can try with a lower number of null networks first, e.g. null = 3
 # modularity of samples
-Qz_samples <- Q_posterior_at_ages(samples_ages, ages, null = 100, seed = 5)
+Qz_samples <- index_at_ages(samples_ages, ages, index = "Q", null = 100, seed = 5)
 
 #+
 # read it in instead
@@ -139,10 +135,10 @@ ppQ <- Qz_samples %>%
 Qz <- readRDS("./networks/Qz.rds")
 Nz <- readRDS("./networks/Nz.rds")
 
-#' Now we can plot all z-scores across ages (Fig. 3 in the paper)
+#' Now we can plot all z-scores across ages (Fig. 2 in the paper)
 #'
 
-#+ message = FALSE
+#+ message = FALSE, warning = FALSE
 pal_3c <- brewer.pal(n = 9, name = 'Blues')[c(9,7,5)]
 wes_orange <- wes_palette("Zissou1",7, type = "continuous")[6]
 
@@ -238,6 +234,7 @@ Mod_samples <- readRDS("./networks/Mod_samples.rds")
 #' and, because of that, produce spurious modules.
 #'
 
+#+ message = FALSE, warning = FALSE
 # Find sampled networks at 80Ma that got several modules with the same hosts (connectance = 1)
 out <- Mod_samples %>% group_by(age, sample) %>% distinct(name) %>% summarize(u=n()) %>% 
   left_join(Mod_samples %>% group_by(age, sample) %>% summarize(n=n())) %>% 

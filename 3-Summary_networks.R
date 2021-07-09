@@ -7,9 +7,10 @@
 
 #'-------------
 #'
-#' Script 3 for analyses performed in Braga et al. 2021 Ecology Letters
-#' *Phylogenetic reconstruction of ancestral ecological networks through time for pierid butterflies and their host plants*.
-#'
+#' Script 3 for analyses performed in Braga et al. 2021
+#' *Phylogenetic reconstruction of ancestral ecological networks through time for pierid butterflies and their host plants*,
+#' Ecology Letters.
+#' 
 #' This is a continuation of script 2 - Character history, so make sure you complete that one first.
 
 #+ include = FALSE

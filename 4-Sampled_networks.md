@@ -1,13 +1,13 @@
 Pieridae host repertoire - Sampled networks
 ================
 Mariana Braga
-21 May, 2021
+09 July, 2021
 
 ------------------------------------------------------------------------
 
-Script 4 for analyses performed in Braga et al. 2021 *Evolution of
-butterfly-plant networks over time, as revealed by Bayesian inference of
-host repertoire*.
+Script 4 for analyses performed in Braga et al. 2021 *Phylogenetic
+reconstruction of ancestral ecological networks through time for pierid
+butterflies and their host plants*, Ecology Letters.
 
 ### Sampled networks
 
@@ -23,7 +23,7 @@ character history.
 tree <- read.tree("./data/tree_nodelab.tre")
 host_tree <- read.tree("./data/angio_pie_50tips_ladder.phy")
 
-history_bl1 <- read_history('./inference/out.3.bl1.pieridae.2s.history.txt') %>% 
+history_bl1 <- evolnets::read_history('./inference/out.3.bl1.pieridae.2s.history.txt') %>% 
   dplyr::filter(iteration > 20000)
 ```
 
@@ -38,7 +38,7 @@ nsamp <- length(unique(history$iteration))
 
 # get samples at ages
 ages <- seq(80,10,-10)
-samples_ages <- samples_at_ages(history, ages, tree, host_tree)
+samples_ages <- evolnets::posterior_at_ages(history, ages, tree, host_tree)[[1]]
 ```
 
 Then, calculate z-scores for nestedness and modularity for each sampled
@@ -47,13 +47,13 @@ network.
 ``` r
 # slow!
 # nestedness of samples
-Nz_samples <- NODF_posterior_at_ages(samples_ages, ages, null = 100, seed = 2)
+Nz_samples <- index_at_ages(samples_ages, ages, index = "NODF", null = 100, seed = 2)
 ```
 
 ``` r
 # even slower! - you can try with a lower number of null networks first, e.g. null = 3
 # modularity of samples
-Qz_samples <- Q_posterior_at_ages(samples_ages, ages, null = 100, seed = 5)
+Qz_samples <- index_at_ages(samples_ages, ages, index = "Q", null = 100, seed = 5)
 ```
 
 ``` r
@@ -91,7 +91,7 @@ Qz <- readRDS("./networks/Qz.rds")
 Nz <- readRDS("./networks/Nz.rds")
 ```
 
-Now we can plot all z-scores across ages (Fig. 3 in the paper)
+Now we can plot all z-scores across ages (Fig. 2 in the paper)
 
 ``` r
 pal_3c <- brewer.pal(n = 9, name = 'Blues')[c(9,7,5)]
@@ -133,14 +133,6 @@ violQ <- ggplot(Qz) +
 
 violQ / violN
 ```
-
-    ## Warning: Removed 56 rows containing non-finite values (stat_ydensity).
-
-    ## Warning: Removed 56 rows containing non-finite values (stat_summary).
-
-    ## Warning: Removed 66 rows containing non-finite values (stat_ydensity).
-
-    ## Warning: Removed 66 rows containing non-finite values (stat_summary).
 
 ![](4-Sampled_networks_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
 
@@ -198,14 +190,7 @@ out <- Mod_samples %>% group_by(age, sample) %>% distinct(name) %>% summarize(u=
   left_join(Mod_samples %>% group_by(age, sample) %>% summarize(n=n())) %>% 
   mutate(problem = case_when(u != n ~ "YES", u == n ~ "NO")) %>% 
   filter(problem == "YES")
-```
 
-    ## `summarise()` has grouped output by 'age'. You can override using the `.groups` argument.
-    ## `summarise()` has grouped output by 'age'. You can override using the `.groups` argument.
-
-    ## Joining, by = c("age", "sample")
-
-``` r
 good_samples_at_80 <- setdiff(1:100,out$sample)
 ```
 

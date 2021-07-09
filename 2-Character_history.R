@@ -7,8 +7,9 @@
 
 #'-------------
 #'
-#' Script 2 for analyses performed in Braga et al. 2021 Ecology Letters
-#' *Phylogenetic reconstruction of ancestral ecological networks through time for pierid butterflies and their host plants*.
+#' Script 2 for analyses performed in Braga et al. 2021
+#' *Phylogenetic reconstruction of ancestral ecological networks through time for pierid butterflies and their host plants*,
+#' Ecology Letters.
 #'
 
 #' ## Set up
@@ -458,12 +459,12 @@ phylob <- tree$tip.label
 phylop <- host_tree$tip.label
 
 plot_net <- edge_list %>% mutate(
-  from = factor(from, levels = phylob),
-  to = factor(to, levels = phylop))
+  from = factor(from, levels = phylop),
+  to = factor(to, levels = phylob))
 
 #' - **Extant network with modules**
 #+ fig.width = 6, fig.height = 7
-ggplot(plot_net, aes(x = to, y = from, fill = factor(Module, levels = wmod_levels50))) +
+ggplot(plot_net, aes(x = from, y = to, fill = factor(Module, levels = wmod_levels50))) +
   geom_tile() +
   theme_bw() +
   scale_x_discrete(drop = FALSE) +

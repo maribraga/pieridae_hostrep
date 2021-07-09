@@ -7,9 +7,9 @@
 
 #'-------------
 #'
-#' Script 1 for analyses performed in Braga et al. 2021 Ecology Letters
-#' *Phylogenetic reconstruction of ancestral ecological networks through time for pierid butterflies and their host plants*.
-
+#' Script 1 for analyses performed in Braga et al. 2021
+#' *Phylogenetic reconstruction of ancestral ecological networks through time for pierid butterflies and their host plants*,
+#' Ecology Letters.
 
 #+ include = FALSE
 library(tidyverse)
