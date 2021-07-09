@@ -7,8 +7,8 @@
 
 #'-------------
 #'
-#' Script 3 for analyses performed in Braga et al. 2021
-#' *Evolution of butterfly-plant networks over time, as revealed by Bayesian inference of host repertoire*.
+#' Script 3 for analyses performed in Braga et al. 2021 Ecology Letters
+#' *Phylogenetic reconstruction of ancestral ecological networks through time for pierid butterflies and their host plants*.
 #'
 #' This is a continuation of script 2 - Character history, so make sure you complete that one first.
 

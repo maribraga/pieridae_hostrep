@@ -1,18 +1,20 @@
 Pieridae host repertoire - parameters
 ================
 Mariana Braga
-21 May, 2021
+09 July, 2021
 
 ------------------------------------------------------------------------
 
-Script 1 for analyses performed in Braga et al. 2021 *Evolution of
-butterfly-plant networks over time, as revealed by Bayesian inference of
-host repertoire*.
+Script 1 for analyses performed in Braga et al. 2021 Ecology Letters
+*Phylogenetic reconstruction of ancestral ecological networks through
+time for pierid butterflies and their host plants*.
 
 ### Parameter Estimates
 
 First we’ll read in the `log files` from the analyses in RevBayes. They
-contain all the sampled parameter values during MCMC.
+contain all the sampled parameter values during MCMC. The first two
+chains used the time-calibrated host tree, while the last two used the
+transformed host tree (all branch lengths = 1).
 
 ``` r
 chain1 <- read.table("./inference/out.2.real.pieridae.2s.log", header = TRUE)[,c(1,5,7:9)]
@@ -33,6 +35,7 @@ postb2 <- filter(chain4, generation >= 20000)
 We’ll use the Gelman and Rubin’s convergence diagnostic
 
 ``` r
+# Test convergence when measuring anagenetic distance between hosts (with time-calibrated host tree)  
 gelman.diag(mcmc.list(as.mcmc(postt), as.mcmc(postt2)))
 ```
 
@@ -50,6 +53,7 @@ gelman.diag(mcmc.list(as.mcmc(postt), as.mcmc(postt2)))
     ## 1.01
 
 ``` r
+# Test convergence when measuring cladogenetic distance between hosts (with transformed host tree)  
 gelman.diag(mcmc.list(as.mcmc(postb), as.mcmc(postb2)))
 ```
 

@@ -1,13 +1,13 @@
 Pieridae host repertoire - Character history
 ================
 Mariana Braga
-21 May, 2021
+09 July, 2021
 
 ------------------------------------------------------------------------
 
-Script 2 for analyses performed in Braga et al. 2021 *Evolution of
-butterfly-plant networks over time, as revealed by Bayesian inference of
-host repertoire*.
+Script 2 for analyses performed in Braga et al. 2021 Ecology Letters
+*Phylogenetic reconstruction of ancestral ecological networks through
+time for pierid butterflies and their host plants*.
 
 ## Set up
 
@@ -145,20 +145,14 @@ you can skip it and load the edge list below.
 ``` r
 # which internal nodes to use? I'll go for all of them.
 nodes <- 67:131
-pp_at_nodes <- posterior_at_nodes(history_bl1, nodes, host_tree)
+pp_at_nodes <- evolnets::posterior_at_nodes(history_bl1, nodes, host_tree)[[2]]
 
-graph <- graph_from_incidence_matrix(pp_at_nodes, weighted = TRUE)
+graph <- igraph::graph_from_incidence_matrix(pp_at_nodes, weighted = TRUE)
 
-edge_list_nodes <- get.data.frame(graph, what = "edges") %>% 
-  mutate(from = factor(from, levels = host_tree$tip.label),
-         to = factor(to, levels = paste0("Index_",nodes))) %>% 
+edge_list_nodes <- igraph::get.data.frame(graph, what = "edges") %>% 
+  dplyr::mutate(from = factor(from, levels = paste0("Index_",nodes)),
+                to = factor(to, levels = host_tree$tip.label)) %>% 
   rename(p = weight)
-```
-
-You can simply read the edge list like so
-
-``` r
-edge_list_nodes <- readRDS("./inference/states_at_nodes_bl1.rds")
 ```
 
 Now we can plot the probabilities of interactions at internal nodes.
@@ -180,7 +174,7 @@ gg_all_nodes <- ggplot(edge_list_nodes, aes(x = to, y = from)) +
     axis.title.y = element_blank())
 
 # only high probability
-gg_high_nodes <- filter(edge_list_nodes, p > 0.9) %>%
+gg_high_nodes <- filter(edge_list_nodes, p >= 0.9) %>%
   ggplot(aes(x = to, y = from)) + 
   geom_tile(aes(fill = p)) +
   scale_x_discrete(drop = FALSE) +
@@ -199,7 +193,7 @@ gg_high_nodes <- filter(edge_list_nodes, p > 0.9) %>%
 gg_all_nodes + gg_high_nodes
 ```
 
-![](2-Character_history_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+![](2-Character_history_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
 ### Ancestral networks
 
@@ -224,12 +218,13 @@ ages <- seq(80,10,-10)
 
 ``` r
 # slow!
-pp_at_ages <- posterior_at_ages(history_bl1, ages, tree, host_tree)
+at_ages <- posterior_at_ages(history_bl1, ages, tree, host_tree)
+pp_at_ages <- at_ages[[2]]
 ```
 
 ``` r
 # quick solution 
-pp_at_ages <- readRDS("./inference/list_m_at_ages_bl1.rds")
+pp_at_ages <- readRDS("./inference/pp_at_ages.rds")
 ```
 
 We can add the extant network to the list with all ancestral networks,
@@ -250,9 +245,9 @@ higher than the threshold are assumed to be present and all others are
 assumed absent.
 
 ``` r
-weighted_net_10 <- get_incidence_matrix_at_ages(pp_at_ages, pt = 0.1, weighted = TRUE)
-weighted_net_50 <- get_incidence_matrix_at_ages(pp_at_ages, pt = 0.5, weighted = TRUE)
-binary_net_90 <- get_incidence_matrix_at_ages(pp_at_ages, pt = 0.9, weighted = FALSE)
+weighted_net_10 <- get_summary_network(pp_at_ages, pt = 0.1, weighted = TRUE)
+weighted_net_50 <- get_summary_network(pp_at_ages, pt = 0.5, weighted = TRUE)
+binary_net_90 <- get_summary_network(pp_at_ages, pt = 0.9, weighted = FALSE)
 ```
 
 Now we can identify the modules in each of the three summary networks at
@@ -287,7 +282,7 @@ for(i in 1:length(weighted_net_50)){
 
 ``` r
 # you can check the modules for some network like so
-plotModuleWeb(wmod50_50, labsize = 0.4)
+bipartite::plotModuleWeb(wmod50_50, labsize = 0.4)
 ```
 
 ![](2-Character_history_files/figure-gfm/one_wmodule-1.png)<!-- -->
@@ -310,7 +305,7 @@ list_wtgraphs50 <- list()
 for(n in 1:length(weighted_net_50)){
   wnet <- as.matrix(weighted_net_50[[n]])
   
-  wgraph <- as_tbl_graph(wnet, directed = F) %>% 
+  wgraph <- as_tbl_graph(t(wnet), directed = F) %>%    
     left_join(filter(all_wmod50_edited, age == ages[n]), by = "name") %>% 
     select(type, name, module)
   
@@ -349,13 +344,13 @@ list_tip_dataw50[[9]] <- tibble(label = tree$tip.label) %>%
   inner_join(filter(all_wmod50_edited, age == 0), by = c("label" = "name"))
 ```
 
-**Plot ggtree and ggraph (Fig. 4 in the paper)**
+**Plot ggtree and ggraph (Fig. 3 in the paper)**
 
 ``` r
 # Choose colors and sizes
 wmod_levels50 <- c(paste0('M',1:12))
-custom_palw50 <- c("#b4356c","#1b1581","#e34c5b","#fca33a","#fbeba9","#fdc486",
-                 "#802b72","#f8c4cc","#c8d9ee","#82a0be","#00a2bf","#006e82")
+custom_palw50 <- c("#8a1c4c","#1b1581","#e34c5b","#fca33a","#fbeba9","#fdc486",
+                 "#b370a8","#f8c4cc","#c8d9ee","#82a0be","#00a2bf","#006e82")
 tip_size = c(3,3,3,2.5,2.5,2,2,2,2)
 node_size = c(4,4,3,3,3,3,3,3,3)
 
@@ -372,18 +367,14 @@ for(i in 1:length(ages)){
   
   assign(paste0("ggtw50_",ages[[i]]), ggt)
   
-  graph <- list_wtgraphs50[[i]] #%E>% 
-    #mutate(highpp = case_when(weight >= 0.5 ~ "high",
-    #                          weight < 0.5 ~ "low"))
+  graph <- list_wtgraphs50[[i]]
   
   ggn <- ggraph(graph, layout = 'stress') +
-    #geom_edge_link(aes(width = weight, color = highpp)) + 
     geom_edge_link(aes(width = weight), color = "grey50") +
     geom_node_point(aes(shape = type, color = factor(module, levels = wmod_levels50)), size = node_size[i]) +
     scale_shape_manual(values = c("square","circle")) +
     scale_color_manual(values = custom_palw50, na.value = "grey70", drop = F) +
     scale_edge_width("Probability", range = c(0.3,1)) +
-    #scale_edge_color_manual(values = c("grey50","grey80")) +
     labs(title = paste0(ages[[i]]," Ma"), shape = "", color = "Module") + 
     theme_void() +
     theme(legend.position = "none")
@@ -436,7 +427,7 @@ ladderize = FALSE. Also, the networks have been edited outside R for the
 figure in the paper. In any case, the information contained in the
 figure is the same.
 
-#### Other plots in Figure 2
+#### Other plots in Figure 1
 
 Now that we have found the modules for the extant network, we can
 produce other plots to combine with the extant butterfly tree and
@@ -452,14 +443,14 @@ phylob <- tree$tip.label
 phylop <- host_tree$tip.label
 
 plot_net <- edge_list %>% mutate(
-  to = factor(to, levels = phylob),
-  from = factor(from, levels = phylop))
+  from = factor(from, levels = phylob),
+  to = factor(to, levels = phylop))
 ```
 
 -   **Extant network with modules**
 
 ``` r
-ggplot(plot_net, aes(x = from, y = to, fill = factor(Module, levels = wmod_levels50))) +
+ggplot(plot_net, aes(x = to, y = from, fill = factor(Module, levels = wmod_levels50))) +
   geom_tile() +
   theme_bw() +
   scale_x_discrete(drop = FALSE) +
@@ -473,7 +464,7 @@ ggplot(plot_net, aes(x = from, y = to, fill = factor(Module, levels = wmod_level
     axis.title.y = element_blank())
 ```
 
-![](2-Character_history_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->
+![](2-Character_history_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
 
 -   **Host tree with modules**
 
@@ -498,4 +489,4 @@ ggtree_but <- ggtree(tree) + geom_tiplab(size = 2) + geom_nodelab(size = 2) +
 ggtree_host + ggtree_but + plot_layout(widths = c(2,3))
 ```
 
-![](2-Character_history_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
+![](2-Character_history_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->

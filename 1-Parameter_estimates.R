@@ -7,8 +7,8 @@
 
 #'-------------
 #'
-#' Script 1 for analyses performed in Braga et al. 2021
-#' *Evolution of butterfly-plant networks over time, as revealed by Bayesian inference of host repertoire*.
+#' Script 1 for analyses performed in Braga et al. 2021 Ecology Letters
+#' *Phylogenetic reconstruction of ancestral ecological networks through time for pierid butterflies and their host plants*.
 
 
 #+ include = FALSE
@@ -23,6 +23,8 @@ library(kdensity)
 #' 
 #' First we'll read in the `log files` from the analyses in RevBayes. 
 #' They contain all the sampled parameter values during MCMC.
+#' The first two chains used the time-calibrated host tree,
+#' while the last two used the transformed host tree (all branch lengths = 1).
 
 /*##### PARAMETER ESTIMATES #####
 
@@ -46,7 +48,10 @@ postb2 <- filter(chain4, generation >= 20000)
 
 /*# _Convergence ----
 */
+# Test convergence when measuring anagenetic distance between hosts (with time-calibrated host tree)  
 gelman.diag(mcmc.list(as.mcmc(postt), as.mcmc(postt2)))
+
+# Test convergence when measuring cladogenetic distance between hosts (with transformed host tree)  
 gelman.diag(mcmc.list(as.mcmc(postb), as.mcmc(postb2)))
 
 #' We are good to go.
