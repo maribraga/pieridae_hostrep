@@ -5,4 +5,6 @@ This repository contains the analyses in Braga et al. 2021 *Evolution of butterf
 - See markdown files (.md) for code and results.
 - .R files of the same name have the source code. 
 
+Part of the code used in this repository was later included in the `evolnets` R package. For updated functions check the [evolnets' repo](https://github.com/maribraga/evolnets).
+
 You can complete these analyses using the content of this repository, but to analyze your own data you have to reconstruct the host repertoire evolution in RevBayes first. The folders /inference/RevBayes-data and /inference/RevBayes-code contain the necessary files to replicate the analysis in our paper and a tutorial can be found [here](https://revbayes.github.io/tutorials/host_rep/host_rep).
